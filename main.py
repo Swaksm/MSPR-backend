@@ -1,7 +1,4 @@
 """
-HealthAI Coach — Backend API
-Point d'entrée minimal : un seul endpoint qui appelle le module IA.
-
 Run: python -m uvicorn main:app --reload
 Doc: http://localhost:8000/docs
 """
@@ -9,8 +6,9 @@ Doc: http://localhost:8000/docs
 import sys
 import os
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
 AI_PATH = Path(__file__).parent.parent / "ia-kcal"
@@ -20,8 +18,8 @@ os.chdir(str(AI_PATH))
 from analyze import analyze
 
 app = FastAPI(
-    title="HealthAI Coach",
-    description="API d'analyse nutritionnelle par IA",
+    title="JARMY",
+    description="API de l'application jarmy",
     version="1.0.0"
 )
 
@@ -32,6 +30,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+SECRET_TOKEN = "clesecrete"
+security = HTTPBearer()
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if credentials.credentials != SECRET_TOKEN:
+        raise HTTPException(status_code=401, detail="Invalid or missing token.")
+    return credentials.credentials
+
 
 class MealRequest(BaseModel):
     text: str
@@ -39,7 +45,7 @@ class MealRequest(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "text": "2 eggs and a banana"
+                "text": "266g of rice and chicken and for the dessert i ate an ice cream and 50g of apple"
             }
         }
 
@@ -58,17 +64,11 @@ class MealResponse(BaseModel):
 
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "HealthAI Coach API"}
+    return {"status": "ok", "service": "JARMY API"}
 
 
 @app.post("/analyze", response_model=MealResponse)
-def analyze_meal(request: MealRequest):
-    """
-    Analyse un repas décrit en texte libre et retourne les kcal.
-
-    - **text** : description libre du repas en anglais
-      ex: "200g of grilled chicken with brown rice and broccoli"
-    """
+def analyze_meal(request: MealRequest, token: str = Depends(verify_token)):
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Meal text cannot be empty.")
 
@@ -77,7 +77,7 @@ def analyze_meal(request: MealRequest):
     except FileNotFoundError as e:
         raise HTTPException(
             status_code=503,
-            detail=f"AI model not ready: {str(e)}. Run python nlp/train_ner.py first."
+            detail=f"AI model not ready: {str(e)}."
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
