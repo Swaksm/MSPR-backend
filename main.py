@@ -2,17 +2,20 @@
 HealthAI Coach — Backend API
 Point d'entrée minimal : un seul endpoint qui appelle le module IA.
 
-Run: uvicorn main:app --reload
+Run: python -m uvicorn main:app --reload
 Doc: http://localhost:8000/docs
 """
 
 import sys
+import os
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "ia-kcal"))
+AI_PATH = Path(__file__).parent.parent / "ia-kcal"
+sys.path.insert(0, str(AI_PATH))
+os.chdir(str(AI_PATH))
 
 from analyze import analyze
 
@@ -22,16 +25,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS — autorise le front Vercel à appeler l'API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # remplacer par l'URL Vercel exacte
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# ── Schémas ───────────────────────────────────────────────────────────────────
 
 class MealRequest(BaseModel):
     text: str
@@ -55,8 +55,6 @@ class MealResponse(BaseModel):
     message: str
     items: list[FoodItemResponse]
 
-
-# ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @app.get("/")
 def root():
