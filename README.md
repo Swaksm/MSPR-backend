@@ -167,3 +167,57 @@ python train_ner.py
 ## Licence
 
 Ce projet est développé dans le cadre de la formation Concepteur Développeur d'Applications (RNCP36581 Bloc E6.1).
+
+## Docker
+
+### 1. Build de l'image Docker
+
+À la racine du projet :
+
+```powershell
+cd C:\Users\swaks\Desktop\Laboratoire\MSPR-backend
+docker build -t jarmy-api .
+```
+
+- `-t jarmy-api` : nom de l'image
+- `.` : chemin du contexte (répertoire courant)
+
+### 2. Lancer le conteneur
+
+```powershell
+docker run -d -p 8000:8000 --name jarmy-api jarmy-api
+```
+
+- `-d` : mode détaché (background)
+- `-p 8000:8000` : mappe le port du conteneur sur le port local
+- `--name jarmy-api` : nom du conteneur
+
+### 3. Vérifier l'API
+
+```powershell
+curl http://localhost:8000/
+```
+
+Réponse attendue :
+
+```json
+{"status":"ok","service":"JARMY API"}
+```
+
+Swagger : http://localhost:8000/docs
+
+### 4. Arrêter et supprimer le conteneur
+
+```powershell
+docker stop jarmy-api
+docker rm jarmy-api
+```
+
+### 5. Remise à zéro (si conteneur existant)
+
+```powershell
+docker rm -f jarmy-api 2>$null
+docker run -d -p 8000:8000 --name jarmy-api jarmy-api
+```
+
+> Note : si le projet a d'importants fichiers de données (ex: `ia-kcal/data/kaggle_nutrition.csv`), assurez-vous de ne pas les exclure de `.dockerignore`.

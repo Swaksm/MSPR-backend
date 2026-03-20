@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
-AI_PATH = Path(__file__).parent.parent / "ia-kcal"
+AI_PATH = Path(__file__).parent / "ia-kcal"
 sys.path.insert(0, str(AI_PATH))
 os.chdir(str(AI_PATH))
 
