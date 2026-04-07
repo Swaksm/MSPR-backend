@@ -1,10 +1,100 @@
 # MSPR-backend
 
-Backend de l'application MSPR pour l'analyse nutritionnelle des repas.
+Backend de l'application MSPR pour l'analyse nutritionnelle des repas avec architecture microservices.
+
+## 🚀 Démarrage rapide
+
+### Lancement avec Docker Compose
+
+```bash
+# Cloner le repository
+git clone https://github.com/Swaksm/MSPR-backend.git
+cd MSPR-backend
+
+# Lancer les services
+docker-compose up --build
+```
+
+Les services seront disponibles sur :
+- **Gateway API** : http://localhost:8000
+- **Service Kcal** : http://localhost:8001 (interne)
+- **Documentation API** : http://localhost:8000/docs
+
+### Arrêt des services
+
+```bash
+docker-compose down
+```
+
+## 📡 Exemples d'appels API
+
+### Analyse d'un repas
+
+Envoyez une requête POST au gateway pour analyser un repas :
+
+```bash
+curl -X POST "http://localhost:8000/kcal/predict" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "text": "266g de riz et poulet et pour le dessert j'\''ai mangé une glace et 50g de pomme"
+     }'
+```
+
+**Exemple de réponse :**
+```json
+{
+  "total_calories": 450.5,
+  "items": [
+    {
+      "food": "riz",
+      "quantity": 266,
+      "unit": "g",
+      "calories": 350.0
+    },
+    {
+      "food": "poulet",
+      "quantity": 100,
+      "unit": "g",
+      "calories": 165.0
+    },
+    {
+      "food": "glace",
+      "quantity": 1,
+      "unit": "portion",
+      "calories": 150.0
+    },
+    {
+      "food": "pomme",
+      "quantity": 50,
+      "unit": "g",
+      "calories": 25.5
+    }
+  ]
+}
+```
+
+### Test avec Python
+
+```python
+import requests
+
+url = "http://localhost:8000/kcal/predict"
+data = {
+    "text": "un steak de 200g avec des frites et une salade"
+}
+
+response = requests.post(url, json=data)
+print(response.json())
+```
 
 ## Description
 
 Ce projet fournit une API REST développée avec FastAPI pour analyser les repas décrits en texte libre et calculer leur apport calorique. Il utilise un module d'intelligence artificielle basé sur spaCy pour extraire les aliments et leurs quantités du texte.
+
+## Architecture
+
+- **Gateway** : Service de routage FastAPI (port 8000)
+- **Kcal** : Service d'analyse nutritionnelle (port 8001)
 
 ## Fonctionnalités
 
@@ -16,7 +106,7 @@ Ce projet fournit une API REST développée avec FastAPI pour analyser les repas
 - Authentification par Bearer Token
 - Support CORS pour les applications frontend
 
-## Installation
+## Installation locale (sans Docker)
 
 ### Prérequis
 
@@ -27,27 +117,31 @@ Ce projet fournit une API REST développée avec FastAPI pour analyser les repas
 
 1. Cloner le repository :
 ```bash
-git clone <url-du-repo>
+git clone https://github.com/Swaksm/MSPR-backend.git
 cd MSPR-backend
 ```
 
 2. Installer les dépendances :
 ```bash
-pip install -r requirements.txt
+pip install -r services/kcal/requirements.txt
 ```
 
 3. Entraîner le modèle NLP (si nécessaire) :
 ```bash
-cd ia-kcal
+cd services/kcal/ia-kcal
 python nlp/train_ner.py
 ```
 
-## Utilisation
+## Utilisation locale
 
 ### Démarrage du serveur
 
 ```bash
+cd services/kcal
 python -m uvicorn main:app --reload
+```
+
+L'API sera disponible sur http://localhost:8000/docs
 ```
 
 Le serveur sera accessible sur `http://localhost:8000`
