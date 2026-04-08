@@ -21,6 +21,17 @@ docker-compose down
 - **Gateway** : http://localhost:8000
 - **Documentation API** : http://localhost:8000/docs
 - **Service Kcal** : http://localhost:8001 (interne, appelé par le gateway)
+- **Adminer** : http://localhost:8080
+
+### Accès PostgreSQL via Adminer
+
+- System : `PostgreSQL`
+- Server : `db`
+- Username : `postgres`
+- Password : `postgres`
+- Database : `healthai`
+
+Ouvre `http://localhost:8080` et utilise ces informations pour visualiser la base.
 
 ---
 
