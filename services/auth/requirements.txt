@@ -6,3 +6,4 @@ pydantic
 python-dotenv>=1.0
 pytest
 httpx
+email-validator

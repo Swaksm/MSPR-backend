@@ -25,16 +25,32 @@ def hash_password(raw_password: str) -> str:
 
 
 class AlimentCreate(BaseModel):
-    nom: str = Field(..., min_length=2)
-    calories_100g: float = Field(..., ge=0)
-    categorie: Optional[str] = None
-    proteines_g: Optional[float] = Field(0, ge=0)
-    glucides_g: Optional[float] = Field(0, ge=0)
-    lipides_g: Optional[float] = Field(0, ge=0)
-    fibres_g: Optional[float] = Field(0, ge=0)
-    sodium_mg: Optional[float] = Field(0, ge=0)
-    sucres_g: Optional[float] = Field(0, ge=0)
-    source_dataset: Optional[str] = "manual"
+    nom: str = Field(..., min_length=2, example="Riz blanc", description="Nom de l'aliment")
+    calories_100g: float = Field(..., ge=0, example=130, description="Calories pour 100g")
+    categorie: Optional[str] = Field(None, example="Féculents", description="Catégorie de l'aliment")
+    proteines_g: Optional[float] = Field(0, ge=0, example=2.7, description="Protéines pour 100g")
+    glucides_g: Optional[float] = Field(0, ge=0, example=28, description="Glucides pour 100g")
+    lipides_g: Optional[float] = Field(0, ge=0, example=0.3, description="Lipides pour 100g")
+    fibres_g: Optional[float] = Field(0, ge=0, example=0.4, description="Fibres pour 100g")
+    sodium_mg: Optional[float] = Field(0, ge=0, example=1, description="Sodium (mg)")
+    sucres_g: Optional[float] = Field(0, ge=0, example=0.1, description="Sucres pour 100g")
+    source_dataset: Optional[str] = Field("manual", example="manual", description="Source des données")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "nom": "Riz blanc",
+                "calories_100g": 130,
+                "categorie": "Féculents",
+                "proteines_g": 2.7,
+                "glucides_g": 28,
+                "lipides_g": 0.3,
+                "fibres_g": 0.4,
+                "sodium_mg": 1,
+                "sucres_g": 0.1,
+                "source_dataset": "manual"
+            }
+        }
 
 
 class AlimentResponse(BaseModel):
@@ -47,23 +63,30 @@ class AlimentResponse(BaseModel):
 
 
 class UserCreate(BaseModel):
-    nom: str = Field(..., min_length=2)
-    prenom: str = Field(..., min_length=2)
-    email: EmailStr
-    password: str = Field(..., min_length=6)
-    date_naissance: Optional[date] = None
-    sexe: Optional[str] = "non_renseigne"
-    poids_initial_kg: Optional[float] = Field(None, gt=0)
-    taille_cm: Optional[int] = Field(None, ge=50, le=300)
-    abonnement: Optional[str] = "freemium"
+    nom: str = Field(..., min_length=2, example="Dupont", description="Nom de famille")
+    prenom: str = Field(..., min_length=2, example="Jean", description="Prénom")
+    email: EmailStr = Field(..., example="jean.dupont@example.com", description="Adresse email")
+    password: str = Field(..., min_length=6, example="secret123", description="Mot de passe")
+    date_naissance: Optional[date] = Field(None, example="1990-01-01", description="Date de naissance")
+    sexe: Optional[str] = Field("non_renseigne", example="homme", description="Sexe")
+    poids_initial_kg: Optional[float] = Field(None, gt=0, example=70, description="Poids initial (kg)")
+    taille_cm: Optional[int] = Field(None, ge=50, le=300, example=175, description="Taille (cm)")
+    abonnement: Optional[str] = Field("freemium", example="freemium", description="Type d'abonnement")
 
-    @model_validator(mode="after")
-    def check_enums(self):
-        if self.sexe not in ALLOWED_SEXE:
-            raise ValueError(f"sexe doit être dans {ALLOWED_SEXE}")
-        if self.abonnement not in ALLOWED_ABONNEMENT:
-            raise ValueError(f"abonnement doit être dans {ALLOWED_ABONNEMENT}")
-        return self
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "nom": "Dupont",
+                "prenom": "Jean",
+                "email": "jean.dupont@example.com",
+                "password": "secret123",
+                "date_naissance": "1990-01-01",
+                "sexe": "homme",
+                "poids_initial_kg": 70,
+                "taille_cm": 175,
+                "abonnement": "freemium"
+            }
+        }
 
 
 class UserResponse(BaseModel):
@@ -78,35 +101,39 @@ class UserResponse(BaseModel):
 
 
 class MealLineCreate(BaseModel):
-    aliment_id: Optional[int] = None
-    aliment_nom: Optional[str] = None
-    quantite_g: float = Field(..., gt=0)
-    calories_100g: Optional[float] = None
-    categorie: Optional[str] = None
-    source_dataset: Optional[str] = "manual"
+    aliment_id: Optional[int] = Field(None, example=1, description="ID de l'aliment (optionnel)")
+    aliment_nom: Optional[str] = Field(None, example="Riz blanc", description="Nom de l'aliment si non référencé")
+    quantite_g: float = Field(..., gt=0, example=150, description="Quantité en grammes")
+    calories_100g: Optional[float] = Field(None, example=130, description="Calories pour 100g si aliment_nom fourni")
+    categorie: Optional[str] = Field(None, example="Féculents", description="Catégorie si aliment_nom fourni")
+    source_dataset: Optional[str] = Field("manual", example="manual", description="Source des données")
 
-    @model_validator(mode="after")
-    def require_aliment_reference(self):
-        if not self.aliment_id and not self.aliment_nom:
-            raise ValueError("aliment_id ou aliment_nom est requis")
-        if self.aliment_nom and self.calories_100g is None:
-            raise ValueError("calories_100g est requis lorsque aliment_nom est fourni")
-        return self
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "aliment_id": 1,
+                "quantite_g": 150
+            }
+        }
 
 
 class MealCreate(BaseModel):
-    type_repas: str
-    date_repas: Optional[date] = Field(default_factory=date.today)
-    notes: Optional[str] = None
-    items: list[MealLineCreate]
+    type_repas: str = Field(..., example="dejeuner", description="Type de repas (petit_dejeuner, dejeuner, diner, collation)")
+    date_repas: Optional[date] = Field(default_factory=date.today, example="2024-04-08", description="Date du repas")
+    notes: Optional[str] = Field(None, example="Repas du midi", description="Notes libres")
+    items: list[MealLineCreate] = Field(..., description="Liste des aliments du repas")
 
-    @model_validator(mode="after")
-    def check_type_repas(self):
-        if self.type_repas not in ALLOWED_REPAS:
-            raise ValueError(f"type_repas doit être dans {ALLOWED_REPAS}")
-        if not self.items:
-            raise ValueError("Au moins un aliment doit être fourni")
-        return self
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "type_repas": "dejeuner",
+                "date_repas": "2024-04-08",
+                "notes": "Repas du midi",
+                "items": [
+                    {"aliment_id": 1, "quantite_g": 150}
+                ]
+            }
+        }
 
 
 class MealLineResponse(BaseModel):

@@ -12,15 +12,23 @@ def hash_password(raw_password: str) -> str:
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str = Field(..., min_length=6)
+    email: EmailStr = Field(..., example="jean.dupont@example.com", description="Adresse email de l'utilisateur")
+    password: str = Field(..., min_length=6, example="secret123", description="Mot de passe de l'utilisateur")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "email": "jean.dupont@example.com",
+                "password": "secret123"
+            }
+        }
 
 
 class LoginResponse(BaseModel):
-    success: bool
-    message: str
-    user_id: int | None = None
-    email: EmailStr | None = None
+    success: bool = Field(..., example=True, description="Succès de l'authentification")
+    message: str = Field(..., example="Authentification réussie.", description="Message de retour")
+    user_id: int | None = Field(None, example=1, description="ID utilisateur si succès")
+    email: EmailStr | None = Field(None, example="jean.dupont@example.com", description="Email utilisateur si succès")
 
 
 @router.post("/login", response_model=LoginResponse)
