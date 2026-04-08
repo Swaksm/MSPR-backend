@@ -6,6 +6,7 @@ router = APIRouter()
 
 KCAL_SERVICE_URL = os.getenv("KCAL_SERVICE_URL", "http://kcal:8001")
 MEAL_SERVICE_URL = os.getenv("MEAL_SERVICE_URL", "http://meal:8003")
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth:8004")
 
 @router.api_route("/kcal/predict", methods=["POST"])
 async def predict_kcal(request: Request):
@@ -50,3 +51,13 @@ async def meal_root(request: Request):
 @router.api_route("/meal/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def meal_proxy(path: str, request: Request):
     return await proxy_request(MEAL_SERVICE_URL, request)
+
+
+@router.api_route("/auth", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def auth_root(request: Request):
+    return await proxy_request(AUTH_SERVICE_URL, request)
+
+
+@router.api_route("/auth/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def auth_proxy(path: str, request: Request):
+    return await proxy_request(AUTH_SERVICE_URL, request)

@@ -21,6 +21,8 @@ docker-compose down
 - **Gateway** : http://localhost:8000
 - **Documentation API** : http://localhost:8000/docs
 - **Service Kcal** : http://localhost:8001 (interne, appelé par le gateway)
+- **Service Meal** : http://localhost:8003
+- **Service Auth** : http://localhost:8004
 - **Adminer** : http://localhost:8080
 
 ### Accès PostgreSQL via Adminer
