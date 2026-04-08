@@ -186,7 +186,13 @@ def etl_aliments(engine) -> dict:
     logger.info("=" * 50)
     logger.info("ETL 1 : Aliments — début")
 
-    df = charger_fichier("daily_food_nutrition.csv", encoding="utf-8")
+    # Supprimer les données existantes pour permettre la réexécution
+    with engine.connect() as conn:
+        conn.execute(text("DELETE FROM aliment"))
+        conn.commit()
+    logger.info("Données aliments existantes supprimées.")
+
+    df = charger_fichier("daily_food_nutrition_dataset.csv", encoding="utf-8", on_bad_lines="skip")
 
     # -- Fallback : génération de données simulées si fichier absent --
     if df is None:
@@ -199,24 +205,32 @@ def etl_aliments(engine) -> dict:
 
     # 1. Renommage des colonnes (adapter selon les noms réels du CSV Kaggle)
     rename_map = {
-        "Food":         "nom",
-        "food":         "nom",
-        "food_item":    "nom",
-        "Calories":     "calories_100g",
-        "calories":     "calories_100g",
-        "Protein":      "proteines_g",
-        "protein":      "proteines_g",
-        "Carbohydrates":"glucides_g",
-        "carbs":        "glucides_g",
-        "Fat":          "lipides_g",
-        "fat":          "lipides_g",
-        "Fiber":        "fibres_g",
-        "fiber":        "fibres_g",
-        "Category":     "categorie",
-        "category":     "categorie",
-        "Sodium":       "sodium_mg",
-        "Sugar":        "sucres_g",
-        "sugar":        "sucres_g",
+        "Food_Item":         "nom",
+        "Food":              "nom",
+        "food":              "nom",
+        "food_item":         "nom",
+        "Calories (kcal)":   "calories_100g",
+        "Calories":          "calories_100g",
+        "calories":          "calories_100g",
+        "Protein (g)":       "proteines_g",
+        "Protein":           "proteines_g",
+        "protein":           "proteines_g",
+        "Carbohydrates (g)": "glucides_g",
+        "Carbohydrates":     "glucides_g",
+        "carbs":             "glucides_g",
+        "Fat (g)":           "lipides_g",
+        "Fat":               "lipides_g",
+        "fat":               "lipides_g",
+        "Fiber (g)":         "fibres_g",
+        "Fiber":             "fibres_g",
+        "fiber":             "fibres_g",
+        "Sugars (g)":        "sucres_g",
+        "Sugar":             "sucres_g",
+        "sugar":             "sucres_g",
+        "Sodium (mg)":       "sodium_mg",
+        "Sodium":            "sodium_mg",
+        "Category":          "categorie",
+        "category":          "categorie",
     }
     df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
 
@@ -283,6 +297,13 @@ def etl_utilisateurs_metriques(engine) -> dict:
     """
     logger.info("=" * 50)
     logger.info("ETL 2 : Utilisateurs & Métriques — début")
+
+    # Supprimer les données existantes pour permettre la réexécution
+    with engine.connect() as conn:
+        conn.execute(text("DELETE FROM metrique_quotidienne"))
+        conn.execute(text("DELETE FROM utilisateur"))
+        conn.commit()
+    logger.info("Données utilisateurs existantes supprimées.")
 
     df = charger_fichier("gym_members_exercise.csv", encoding="utf-8")
 
@@ -363,7 +384,8 @@ def etl_utilisateurs_metriques(engine) -> dict:
     # Supprimer les doublons email (si re-run)
     with engine.connect() as conn:
         try:
-            emails_existants = pd.read_sql("SELECT email FROM utilisateur", conn)
+            result = conn.execute(text("SELECT email FROM utilisateur"))
+            emails_existants = pd.DataFrame(result.mappings().all())
             df_users = df_users[~df_users["email"].isin(emails_existants["email"])]
         except Exception:
             pass  # Table vide ou inexistante
@@ -372,10 +394,10 @@ def etl_utilisateurs_metriques(engine) -> dict:
 
     # --- Récupération des IDs insérés ---
     with engine.connect() as conn:
-        df_ids = pd.read_sql(
-            "SELECT id, email FROM utilisateur WHERE email LIKE 'user_%@healthai.demo'",
-            conn
-        )
+        result = conn.execute(text(
+            "SELECT id, email FROM utilisateur WHERE email LIKE 'user_%@healthai.demo'"
+        ))
+        df_ids = pd.DataFrame(result.mappings().all())
 
     # --- Création des métriques quotidiennes ---
     metriques = []
@@ -444,11 +466,23 @@ def etl_exercices(engine) -> dict:
     logger.info("=" * 50)
     logger.info("ETL 3 : Exercices — début")
 
+    # Supprimer les données existantes pour permettre la réexécution
+    with engine.connect() as conn:
+        conn.execute(text("DELETE FROM exercice_muscle"))
+        conn.execute(text("DELETE FROM exercice"))
+        conn.commit()
+    logger.info("Données exercices existantes supprimées.")
+
     df = charger_fichier("exercises.json")
 
     if df is None:
         logger.warning("Fichier exercises.json absent — génération de données simulées.")
         df = _simuler_exercices()
+
+    # Convertir les listes en chaînes pour éviter les erreurs de hash dans rapport_qualite
+    for col in df.columns:
+        if df[col].dtype == 'object':
+            df[col] = df[col].apply(lambda x: str(x) if isinstance(x, list) else x)
 
     rapport = rapport_qualite(df, "exercices_brut")
 
@@ -511,8 +545,10 @@ def etl_exercices(engine) -> dict:
     # --- Association exercice ↔ groupe musculaire ---
     if "muscle_principal" in df.columns:
         with engine.connect() as conn:
-            df_ex_ids = pd.read_sql("SELECT id, nom FROM exercice", conn)
-            df_mu_ids = pd.read_sql("SELECT id, nom FROM groupe_musculaire", conn)
+            result_ex = conn.execute(text("SELECT id, nom FROM exercice"))
+            df_ex_ids = pd.DataFrame(result_ex.mappings().all())
+            result_mu = conn.execute(text("SELECT id, nom FROM groupe_musculaire"))
+            df_mu_ids = pd.DataFrame(result_mu.mappings().all())
 
         df_ex_ids["nom_lower"] = df_ex_ids["nom"].str.lower()
         assoc_rows = []
@@ -533,6 +569,28 @@ def etl_exercices(engine) -> dict:
                     "muscle_id":   int(match_mu.iloc[0]["id"]),
                     "role":        "principal"
                 })
+
+            # Muscles secondaires (si présents)
+            muscles_secondaires = row.get("muscles_secondaires", [])
+            if isinstance(muscles_secondaires, str):
+                # Si c'est une chaîne (après conversion), essayer de la parser
+                try:
+                    import ast
+                    muscles_secondaires = ast.literal_eval(muscles_secondaires)
+                except:
+                    muscles_secondaires = []
+            elif not isinstance(muscles_secondaires, list):
+                muscles_secondaires = []
+
+            for muscle_sec in muscles_secondaires:
+                muscle_sec_nom = str(muscle_sec).lower()
+                match_sec = df_mu_ids[df_mu_ids["nom"].str.lower() == muscle_sec_nom]
+                if not match_sec.empty:
+                    assoc_rows.append({
+                        "exercice_id": ex_id,
+                        "muscle_id":   int(match_sec.iloc[0]["id"]),
+                        "role":        "secondaire"
+                    })
 
         if assoc_rows:
             df_assoc = pd.DataFrame(assoc_rows).drop_duplicates()
@@ -598,11 +656,12 @@ def etl_objectifs_utilisateurs(engine) -> dict:
         df["objectif_libelle"] = "maintien_forme"
 
     with engine.connect() as conn:
-        df_users = pd.read_sql(
-            "SELECT id FROM utilisateur WHERE email LIKE 'user_%@healthai.demo' ORDER BY id",
-            conn
-        )
-        df_obj = pd.read_sql("SELECT id, libelle FROM objectif", conn)
+        result_users = conn.execute(text(
+            "SELECT id FROM utilisateur WHERE email LIKE 'user_%@healthai.demo' ORDER BY id"
+        ))
+        df_users = pd.DataFrame(result_users.mappings().all())
+        result_obj = conn.execute(text("SELECT id, libelle FROM objectif"))
+        df_obj = pd.DataFrame(result_obj.mappings().all())
 
     if df_users.empty:
         logger.warning("Aucun utilisateur trouvé. ETL 4 ignoré.")
@@ -624,6 +683,13 @@ def etl_objectifs_utilisateurs(engine) -> dict:
 
     if assoc_rows:
         df_assoc = pd.DataFrame(assoc_rows).drop_duplicates(subset=["utilisateur_id", "objectif_id"])
+        # Supprimer les associations existantes pour éviter les conflits
+        with engine.connect() as conn:
+            for _, row in df_assoc.iterrows():
+                conn.execute(text(
+                    "DELETE FROM utilisateur_objectif WHERE utilisateur_id = :uid AND objectif_id = :oid"
+                ), {"uid": int(row["utilisateur_id"]), "oid": int(row["objectif_id"])})
+            conn.commit()
         nb = inserer_en_base(df_assoc, "utilisateur_objectif", engine)
     else:
         nb = 0
