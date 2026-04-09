@@ -1,3 +1,7 @@
+
+POST    http://localhost:8002/etl/run
+
+
 # HealthAI Coach — Backend Métier
 
 Pipeline ETL + Base de données relationnelle pour la plateforme HealthAI Coach.
