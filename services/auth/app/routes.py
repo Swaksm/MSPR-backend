@@ -31,6 +31,8 @@ class LoginResponse(BaseModel):
     message: str = Field(..., example="Authentification réussie.", description="Message de retour")
     user_id: int | None = Field(None, example=1, description="ID utilisateur si succès")
     email: EmailStr | None = Field(None, example="jean.dupont@example.com", description="Email utilisateur si succès")
+    prenom: str | None = Field(None, example="Jean")
+    nom: str | None = Field(None, example="Dupont")
 
 
 class UserCreate(BaseModel):
@@ -68,7 +70,7 @@ class GoalUpdateRequest(BaseModel):
 @router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest):
     user = fetch_one(
-        "SELECT id, email, mdp_hash, actif FROM utilisateur WHERE email = :email",
+        "SELECT id, email, mdp_hash, actif, prenom, nom FROM utilisateur WHERE email = :email",
         {"email": payload.email},
     )
     if not user:
@@ -85,6 +87,8 @@ def login(payload: LoginRequest):
         message="Authentification réussie.",
         user_id=user["id"],
         email=user["email"],
+        prenom=user["prenom"],
+        nom=user["nom"],
     )
 
 
