@@ -268,7 +268,8 @@ def resolve_aliment(item: MealLineCreate) -> dict:
 def get_meal_response(journal_id: int) -> MealResponse:
     rows = fetch_all(
         "SELECT jr.id AS meal_id, jr.utilisateur_id, jr.date_repas, jr.type_repas, jr.notes, jr.created_at, "
-        " lr.id AS ligne_id, lr.quantite_g, lr.calories_calculees, "
+        " lr.id AS ligne_id, lr.quantite_g, "
+        " (lr.quantite_g / 100.0 * a.calories_100g) AS calories_calculees, "
         " a.id AS aliment_id, a.nom AS aliment_nom, a.calories_100g, a.categorie, a.source_dataset "
         "FROM journal_repas jr "
         "JOIN ligne_repas lr ON lr.journal_id = jr.id "
