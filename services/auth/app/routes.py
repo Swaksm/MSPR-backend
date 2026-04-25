@@ -43,6 +43,7 @@ class UserCreate(BaseModel):
     poids_initial_kg: Optional[float] = Field(None, gt=0, example=70, description="Poids initial (kg)")
     taille_cm: Optional[int] = Field(None, ge=50, le=300, example=175, description="Taille (cm)")
     abonnement: Optional[str] = Field("freemium", example="freemium", description="Type d'abonnement")
+    kcal_objectif: Optional[int] = Field(2000, ge=500, le=10000)
 
 
 class UserResponse(BaseModel):
@@ -57,6 +58,11 @@ class UserResponse(BaseModel):
     date_naissance: Optional[date] = None
     poids_initial_kg: Optional[float] = None
     taille_cm: Optional[int] = None
+    kcal_objectif: int
+
+
+class GoalUpdateRequest(BaseModel):
+    kcal_objectif: int = Field(..., ge=500, le=10000)
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -84,19 +90,32 @@ def login(payload: LoginRequest):
 
 @router.get("/users", response_model=list[UserResponse])
 def list_users():
-    users = fetch_all("SELECT id, nom, prenom, email, sexe, abonnement, date_inscription, actif, date_naissance, poids_initial_kg, taille_cm FROM utilisateur ORDER BY id")
+    users = fetch_all("SELECT id, nom, prenom, email, sexe, abonnement, date_inscription, actif, date_naissance, poids_initial_kg, taille_cm, kcal_objectif FROM utilisateur ORDER BY id")
     return [UserResponse(**u) for u in users]
 
 
 @router.get("/users/{user_id}", response_model=UserResponse)
 def get_user(user_id: int):
     user = fetch_one(
-        "SELECT id, nom, prenom, email, sexe, abonnement, date_inscription, actif, date_naissance, poids_initial_kg, taille_cm FROM utilisateur WHERE id = :user_id",
+        "SELECT id, nom, prenom, email, sexe, abonnement, date_inscription, actif, date_naissance, poids_initial_kg, taille_cm, kcal_objectif FROM utilisateur WHERE id = :user_id",
         {"user_id": user_id},
     )
     if not user:
         raise HTTPException(404, "Utilisateur introuvable")
     return UserResponse(**user)
+
+
+@router.put("/users/{user_id}/goal")
+def update_user_goal(user_id: int, payload: GoalUpdateRequest):
+    user = fetch_one("SELECT id FROM utilisateur WHERE id = :user_id", {"user_id": user_id})
+    if not user:
+        raise HTTPException(404, "Utilisateur introuvable")
+    
+    execute_write(
+        "UPDATE utilisateur SET kcal_objectif = :goal WHERE id = :user_id",
+        {"goal": payload.kcal_objectif, "user_id": user_id}
+    )
+    return {"status": "updated", "kcal_objectif": payload.kcal_objectif}
 
 
 @router.post("/users", response_model=UserResponse)
@@ -108,9 +127,9 @@ def create_user(payload: UserCreate):
     params = payload.model_dump(exclude={"password"})
     params["mdp_hash"] = hash_password(payload.password)
     result = execute_write(
-        "INSERT INTO utilisateur (nom, prenom, email, mdp_hash, date_naissance, sexe, poids_initial_kg, taille_cm, abonnement)"
-        " VALUES (:nom, :prenom, :email, :mdp_hash, :date_naissance, :sexe, :poids_initial_kg, :taille_cm, :abonnement)"
-        " RETURNING id, nom, prenom, email, sexe, abonnement, date_inscription, actif, date_naissance, poids_initial_kg, taille_cm",
+        "INSERT INTO utilisateur (nom, prenom, email, mdp_hash, date_naissance, sexe, poids_initial_kg, taille_cm, abonnement, kcal_objectif)"
+        " VALUES (:nom, :prenom, :email, :mdp_hash, :date_naissance, :sexe, :poids_initial_kg, :taille_cm, :abonnement, :kcal_objectif)"
+        " RETURNING id, nom, prenom, email, sexe, abonnement, date_inscription, actif, date_naissance, poids_initial_kg, taille_cm, kcal_objectif",
         params,
     )
     row = result.mappings().first()
