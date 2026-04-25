@@ -23,7 +23,18 @@ async def predict_kcal(request: Request):
 
 async def proxy_request(base_url: str, request: Request):
     async with httpx.AsyncClient() as client:
-        url = f"{base_url}{request.url.path}"
+        # Strip the service prefix (e.g., /auth or /meal) from the path
+        path = request.url.path
+        if path.startswith("/auth"):
+            path = path[5:]
+        elif path.startswith("/meal"):
+            path = path[5:]
+        
+        # Ensure path starts with /
+        if not path.startswith("/"):
+            path = "/" + path
+            
+        url = f"{base_url}{path}"
         headers = dict(request.headers)
         headers.pop("host", None)
         body = await request.body()

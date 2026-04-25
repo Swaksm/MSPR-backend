@@ -206,6 +206,12 @@ def create_user(payload: UserCreate):
     return UserResponse(**dict(row))
 
 
+@router.get("/users", response_model=list[UserResponse])
+def list_users():
+    users = fetch_all("SELECT id, nom, prenom, email, sexe, abonnement, date_inscription, actif FROM utilisateur ORDER BY id")
+    return [UserResponse(**u) for u in users]
+
+
 @router.get("/users/{user_id}", response_model=UserResponse)
 def get_user(user_id: int):
     user = fetch_one(
@@ -215,6 +221,20 @@ def get_user(user_id: int):
     if not user:
         raise HTTPException(404, "Utilisateur introuvable")
     return UserResponse(**user)
+
+
+@router.delete("/users/{user_id}")
+def delete_user(user_id: int):
+    user = fetch_one("SELECT id FROM utilisateur WHERE id = :user_id", {"user_id": user_id})
+    if not user:
+        raise HTTPException(404, "Utilisateur introuvable")
+    
+    # Delete meals first (if not cascading)
+    execute_write("DELETE FROM journal_repas WHERE utilisateur_id = :user_id", {"user_id": user_id})
+    # Delete user
+    execute_write("DELETE FROM utilisateur WHERE id = :user_id", {"user_id": user_id})
+    
+    return {"status": "deleted", "user_id": user_id}
 
 
 def resolve_aliment(item: MealLineCreate) -> dict:
