@@ -1,32 +1,34 @@
 # ETL Service
 
-Service de pipeline ETL (Extract, Transform, Load) pour charger et traiter les données nutritionnelles et sportives de HealthAI.
+Service de pipeline ETL (Extract, Transform, Load) pour le chargement des données.
 
 ## 🚀 Endpoints
 
-- `POST /etl/run` : Déclenche l'exécution du pipeline ETL en arrière-plan.
-- `GET /health` : Vérifie l'état du service.
+#### `POST /etl/run`
+Déclenche le pipeline de traitement des données en arrière-plan.
 
-## 🛠️ Installation & Lancement
-
-### Docker (Recommandé)
-```bash
-docker-compose up etl
+**Success Response (202 Accepted) :**
+```json
+{
+  "status": "started",
+  "message": "ETL pipeline has been started in the background. Check logs for progress."
+}
 ```
 
-### Manuel
+#### `GET /health`
+Vérifie la santé du service.
+
+**Success Response (200 OK) :**
+```json
+{
+  "status": "ok",
+  "service": "healthai_etl"
+}
+```
+
+## 🛠️ Installation & Lancement
 ```bash
 cd services/etl
 pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8002 --reload
 ```
-
-## 📊 Pipeline ETL
-Le pipeline traite les sources suivantes :
-- **CSV Kaggle** : Aliments, Exercices, Profils utilisateurs.
-- **Base de données** : Nettoyage et insertion dans PostgreSQL `healthai`.
-
-## 📂 Structure
-- `data/` : Contient les fichiers sources (CSV, JSON).
-- `etl_pipeline.py` : Logique principale du traitement de données.
-- `healthai_schema.sql` : Schéma de la base de données.
