@@ -362,16 +362,23 @@ def etl_utilisateurs_metriques(engine) -> dict:
         df = df[df["bpm_max"].between(50, 300) | df["bpm_max"].isna()]
 
     df = df.dropna(subset=["poids_initial_kg"])
-    df = df.reset_index(drop=True)
+    df = df.reset_index(drop=True).head(10) # Limiter à 10 utilisateurs pour la démo
+
+    # Listes de noms réels pour la démo
+    PRENOMS = ["Jean", "Marie", "Pierre", "Sophie", "Thomas", "Julie", "Nicolas", "Emma", "Lucas", "Chloé"]
+    NOMS = ["Dupont", "Lefebvre", "Moreau", "Laurent", "Girard", "Roux", "Petit", "Durand", "Dubois", "Michel"]
 
     # --- Création des utilisateurs fictifs ---
     utilisateurs = []
     for i, row in df.iterrows():
-        email = f"user_{i+1:05d}@healthai.demo"
-        mdp_hash = hashlib.sha256(f"demo_{i}".encode()).hexdigest()
+        prenom = PRENOMS[i % len(PRENOMS)]
+        nom = NOMS[i % len(NOMS)]
+        # On garde un préfixe u{i} pour lier facilement les métriques dans ce script
+        email = f"u{i}.{prenom.lower()}.{nom.lower()}@healthai.demo"
+        mdp_hash = hashlib.sha256("secret123".encode()).hexdigest()
         utilisateurs.append({
-            "nom":              f"User{i+1:05d}",
-            "prenom":           "Demo",
+            "nom":              nom,
+            "prenom":           prenom,
             "email":            email,
             "mdp_hash":         mdp_hash,
             "sexe":             row.get("sexe", "non_renseigne"),
@@ -397,14 +404,19 @@ def etl_utilisateurs_metriques(engine) -> dict:
     # --- Récupération des IDs insérés ---
     with engine.connect() as conn:
         result = conn.execute(text(
-            "SELECT id, email FROM utilisateur WHERE email LIKE 'user_%@healthai.demo'"
+            "SELECT id, email FROM utilisateur WHERE email LIKE 'u%@healthai.demo'"
         ))
         df_ids = pd.DataFrame(result.mappings().all())
 
     # --- Création des métriques quotidiennes ---
     metriques = []
     for _, row_id in df_ids.iterrows():
-        idx = int(row_id["email"].split("_")[1].split("@")[0]) - 1
+        try:
+            # On extrait l'index i depuis le format u{i}.prenom.nom...
+            idx = int(row_id["email"].split(".")[0][1:])
+        except (ValueError, IndexError):
+            continue
+            
         if idx >= len(df):
             continue
         row = df.iloc[idx]
@@ -441,7 +453,7 @@ def _simuler_gym_members() -> pd.DataFrame:
     import random
     random.seed(42)
     data = []
-    for i in range(50):
+    for i in range(10):
         data.append({
             "age":              random.randint(20, 65),
             "sexe":             random.choice(["homme", "femme"]),
@@ -706,7 +718,7 @@ def _simuler_objectifs() -> pd.DataFrame:
     random.seed(1)
     goals = ["perte_de_poids", "prise_de_masse", "maintien_forme",
              "amelioration_sommeil", "endurance", "flexibilite"]
-    return pd.DataFrame({"objectif_libelle": [random.choice(goals) for _ in range(100)]})
+    return pd.DataFrame({"objectif_libelle": [random.choice(goals) for _ in range(10)]})
 
 
 # =============================================================
