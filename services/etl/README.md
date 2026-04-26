@@ -7,6 +7,8 @@ Service de pipeline ETL (Extract, Transform, Load) pour le chargement des donné
 #### `POST /etl/run`
 Déclenche le pipeline de traitement des données en arrière-plan.
 
+**Authentification :** `Bearer clesecrete`
+
 **Success Response (202 Accepted) :**
 ```json
 {
