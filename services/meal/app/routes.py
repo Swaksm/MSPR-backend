@@ -36,57 +36,26 @@ class AlimentCreate(BaseModel):
     sucres_g: Optional[float] = Field(0, ge=0, example=0.1, description="Sucres pour 100g")
     source_dataset: Optional[str] = Field("manual", example="manual", description="Source des données")
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "nom": "Riz blanc",
-                "calories_100g": 130,
-                "categorie": "Féculents",
-                "proteines_g": 2.7,
-                "glucides_g": 28,
-                "lipides_g": 0.3,
-                "fibres_g": 0.4,
-                "sodium_mg": 1,
-                "sucres_g": 0.1,
-                "source_dataset": "manual"
-            }
-        }
-
 
 class AlimentResponse(BaseModel):
-    id: int
-    nom: str
-    calories_100g: float
-    categorie: Optional[str]
-    source_dataset: Optional[str]
+    id: int = Field(..., description="ID unique de l'aliment")
+    nom: str = Field(..., description="Nom complet de l'aliment")
+    calories_100g: float = Field(..., description="Calories pour 100g")
+    categorie: Optional[str] = None
+    source_dataset: Optional[str] = None
     created_at: datetime
 
 
 class UserCreate(BaseModel):
-    nom: str = Field(..., min_length=2, example="Dupont", description="Nom de famille")
-    prenom: str = Field(..., min_length=2, example="Jean", description="Prénom")
-    email: EmailStr = Field(..., example="jean.dupont@example.com", description="Adresse email")
-    password: str = Field(..., min_length=6, example="secret123", description="Mot de passe")
-    date_naissance: Optional[date] = Field(None, example="1990-01-01", description="Date de naissance")
-    sexe: Optional[str] = Field("non_renseigne", example="homme", description="Sexe")
-    poids_initial_kg: Optional[float] = Field(None, gt=0, example=70, description="Poids initial (kg)")
-    taille_cm: Optional[int] = Field(None, ge=50, le=300, example=175, description="Taille (cm)")
-    abonnement: Optional[str] = Field("freemium", example="freemium", description="Type d'abonnement")
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "nom": "Dupont",
-                "prenom": "Jean",
-                "email": "jean.dupont@example.com",
-                "password": "secret123",
-                "date_naissance": "1990-01-01",
-                "sexe": "homme",
-                "poids_initial_kg": 70,
-                "taille_cm": 175,
-                "abonnement": "freemium"
-            }
-        }
+    nom: str = Field(..., min_length=2, description="Nom de famille")
+    prenom: str = Field(..., min_length=2, description="Prénom")
+    email: EmailStr = Field(..., description="Adresse email")
+    password: str = Field(..., min_length=6, description="Mot de passe")
+    date_naissance: Optional[date] = None
+    sexe: Optional[str] = "non_renseigne"
+    poids_initial_kg: Optional[float] = None
+    taille_cm: Optional[int] = None
+    abonnement: Optional[str] = "freemium"
 
 
 class UserResponse(BaseModel):
@@ -101,39 +70,19 @@ class UserResponse(BaseModel):
 
 
 class MealLineCreate(BaseModel):
-    aliment_id: Optional[int] = Field(None, example=1, description="ID de l'aliment (optionnel)")
-    aliment_nom: Optional[str] = Field(None, example="Riz blanc", description="Nom de l'aliment si non référencé")
-    quantite_g: float = Field(..., gt=0, example=150, description="Quantité en grammes")
-    calories_100g: Optional[float] = Field(None, example=130, description="Calories pour 100g si aliment_nom fourni")
-    categorie: Optional[str] = Field(None, example="Féculents", description="Catégorie si aliment_nom fourni")
-    source_dataset: Optional[str] = Field("manual", example="manual", description="Source des données")
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "aliment_id": 1,
-                "quantite_g": 150
-            }
-        }
+    aliment_id: Optional[int] = Field(None, description="ID de l'aliment (optionnel)")
+    aliment_nom: Optional[str] = Field(None, description="Nom de l'aliment si non référencé")
+    quantite_g: float = Field(..., gt=0, description="Quantité en grammes")
+    calories_100g: Optional[float] = Field(None, description="Calories pour 100g si aliment_nom fourni")
+    categorie: Optional[str] = None
+    source_dataset: Optional[str] = "manual"
 
 
 class MealCreate(BaseModel):
-    type_repas: str = Field(..., example="dejeuner", description="Type de repas (petit_dejeuner, dejeuner, diner, collation)")
-    date_repas: Optional[date] = Field(default_factory=date.today, example="2024-04-08", description="Date du repas")
-    notes: Optional[str] = Field(None, example="Repas du midi", description="Notes libres")
+    type_repas: str = Field(..., description="Type (petit_dejeuner, dejeuner, diner, collation)")
+    date_repas: Optional[date] = Field(default_factory=date.today)
+    notes: Optional[str] = None
     items: list[MealLineCreate] = Field(..., description="Liste des aliments du repas")
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "type_repas": "dejeuner",
-                "date_repas": "2024-04-08",
-                "notes": "Repas du midi",
-                "items": [
-                    {"aliment_id": 1, "quantite_g": 150}
-                ]
-            }
-        }
 
 
 class MealLineResponse(BaseModel):
@@ -161,32 +110,84 @@ class MealResponse(BaseModel):
 @router.post("/aliments", response_model=AlimentResponse, summary="Ajouter un aliment", tags=["Catalogue"])
 def create_aliment(payload: AlimentCreate):
     """Enregistre un nouvel aliment dans le catalogue nutritionnel."""
-    # ... code existant ...
+    existing = fetch_one(
+        "SELECT id FROM aliment WHERE LOWER(nom) = LOWER(:nom)",
+        {"nom": payload.nom},
+    )
+    if existing:
+        raise HTTPException(400, "Cet aliment existe déjà")
+
+    result = execute_write(
+        "INSERT INTO aliment (nom, categorie, calories_100g, proteines_g, glucides_g, lipides_g, fibres_g, sodium_mg, sucres_g, source_dataset)"
+        " VALUES (:nom, :categorie, :calories_100g, :proteines_g, :glucides_g, :lipides_g, :fibres_g, :sodium_mg, :sucres_g, :source_dataset)"
+        " RETURNING id, nom, calories_100g, categorie, source_dataset, created_at",
+        payload.model_dump(),
+    )
+    row = result.mappings().first()
+    return AlimentResponse(**dict(row))
+
 
 @router.get("/aliments", response_model=list[AlimentResponse], summary="Rechercher des aliments", tags=["Catalogue"])
 def list_aliments(query: Optional[str] = Query(None, description="Filtrer par nom d'aliment")):
     """Liste les aliments du catalogue avec filtrage optionnel."""
-    # ... code existant ...
+    sql = "SELECT id, nom, calories_100g, categorie, source_dataset, created_at FROM aliment"
+    params = {}
+    if query:
+        sql += " WHERE LOWER(nom) LIKE LOWER(:query)"
+        params["query"] = f"%{query}%"
+    sql += " ORDER BY nom LIMIT 200"
+    return [AlimentResponse(**row) for row in fetch_all(sql, params)]
+
 
 @router.post("/users", response_model=UserResponse, summary="Créer un profil", tags=["Utilisateurs"])
 def create_user(payload: UserCreate):
     """Crée un nouveau profil utilisateur pour la gestion des repas."""
-    # ... code existant ...
+    existing = fetch_one("SELECT id FROM utilisateur WHERE email = :email", {"email": payload.email})
+    if existing:
+        raise HTTPException(400, "Email déjà utilisé")
+
+    params = payload.model_dump(exclude={"password"})
+    params["mdp_hash"] = hash_password(payload.password)
+    result = execute_write(
+        "INSERT INTO utilisateur (nom, prenom, email, mdp_hash, date_naissance, sexe, poids_initial_kg, taille_cm, abonnement)"
+        " VALUES (:nom, :prenom, :email, :mdp_hash, :date_naissance, :sexe, :poids_initial_kg, :taille_cm, :abonnement)"
+        " RETURNING id, nom, prenom, email, sexe, abonnement, date_inscription, actif",
+        params,
+    )
+    row = result.mappings().first()
+    return UserResponse(**dict(row))
+
 
 @router.get("/users", response_model=list[UserResponse], summary="Liste des profils", tags=["Utilisateurs"])
 def list_users():
     """Récupère tous les profils utilisateurs enregistrés dans le service Meal."""
-    # ... code existant ...
+    users = fetch_all("SELECT id, nom, prenom, email, sexe, abonnement, date_inscription, actif FROM utilisateur ORDER BY id")
+    return [UserResponse(**u) for u in users]
+
 
 @router.get("/users/{user_id}", response_model=UserResponse, summary="Détails du profil", tags=["Utilisateurs"])
 def get_user(user_id: int):
     """Récupère les informations d'un profil utilisateur spécifique."""
-    # ... code existant ...
+    user = fetch_one(
+        "SELECT id, nom, prenom, email, sexe, abonnement, date_inscription, actif FROM utilisateur WHERE id = :user_id",
+        {"user_id": user_id},
+    )
+    if not user:
+        raise HTTPException(404, "Utilisateur introuvable")
+    return UserResponse(**user)
+
 
 @router.delete("/users/{user_id}", summary="Supprimer un profil", tags=["Utilisateurs"])
 def delete_user(user_id: int):
     """Supprime un profil utilisateur et toutes ses données liées."""
-    # ... code existant ...
+    user = fetch_one("SELECT id FROM utilisateur WHERE id = :user_id", {"user_id": user_id})
+    if not user:
+        raise HTTPException(404, "Utilisateur introuvable")
+    
+    execute_write("DELETE FROM journal_repas WHERE utilisateur_id = :user_id", {"user_id": user_id})
+    execute_write("DELETE FROM utilisateur WHERE id = :user_id", {"user_id": user_id})
+    
+    return {"status": "deleted", "user_id": user_id}
 
 
 def resolve_aliment(item: MealLineCreate) -> dict:
@@ -266,19 +267,62 @@ def get_meal_response(journal_id: int) -> MealResponse:
 @router.post("/users/{user_id}/meals", response_model=MealResponse, summary="Enregistrer un repas", tags=["Journal Alimentaire"])
 def create_meal(user_id: int, payload: MealCreate):
     """Enregistre un nouveau repas complet pour un utilisateur donné."""
-    # ... code existant ...
+    user = fetch_one("SELECT id FROM utilisateur WHERE id = :user_id", {"user_id": user_id})
+    if not user:
+        raise HTTPException(404, "Utilisateur introuvable")
+
+    journal_result = execute_write(
+        "INSERT INTO journal_repas (utilisateur_id, date_repas, type_repas, notes) "
+        "VALUES (:user_id, :date_repas, :type_repas, :notes) RETURNING id",
+        {
+            "user_id": user_id,
+            "date_repas": payload.date_repas,
+            "type_repas": payload.type_repas,
+            "notes": payload.notes,
+        },
+    )
+    journal_id = journal_result.scalar_one()
+
+    for item in payload.items:
+        aliment = resolve_aliment(item)
+        execute_write(
+            "INSERT INTO ligne_repas (journal_id, aliment_id, quantite_g) "
+            "VALUES (:journal_id, :aliment_id, :quantite_g)",
+            {
+                "journal_id": journal_id,
+                "aliment_id": aliment["id"],
+                "quantite_g": item.quantite_g,
+            },
+        )
+
+    return get_meal_response(journal_id)
+
 
 @router.get("/users/{user_id}/meals", response_model=list[MealResponse], summary="Historique des repas", tags=["Journal Alimentaire"])
 def list_meals(user_id: int):
     """Récupère l'historique complet des repas d'un utilisateur."""
-    # ... code existant ...
+    user = fetch_one("SELECT id FROM utilisateur WHERE id = :user_id", {"user_id": user_id})
+    if not user:
+        raise HTTPException(404, "Utilisateur introuvable")
+
+    journals = fetch_all(
+        "SELECT id FROM journal_repas WHERE utilisateur_id = :user_id ORDER BY date_repas DESC, id",
+        {"user_id": user_id},
+    )
+    return [get_meal_response(j["id"]) for j in journals]
+
 
 @router.get("/meals/{meal_id}", response_model=MealResponse, summary="Détails du repas", tags=["Journal Alimentaire"])
 def get_meal(meal_id: int):
     """Récupère les détails d'un repas spécifique (aliments, calories)."""
-    # ... code existant ...
+    return get_meal_response(meal_id)
+
 
 @router.delete("/meals/{meal_id}", summary="Supprimer un repas", tags=["Journal Alimentaire"])
 def delete_meal(meal_id: int):
     """Supprime définitivement un repas de l'historique."""
-    # ... code existant ...
+    meal = fetch_one("SELECT id FROM journal_repas WHERE id = :meal_id", {"meal_id": meal_id})
+    if not meal:
+        raise HTTPException(404, "Repas introuvable")
+    execute_write("DELETE FROM journal_repas WHERE id = :meal_id", {"meal_id": meal_id})
+    return {"status": "deleted", "meal_id": meal_id}
