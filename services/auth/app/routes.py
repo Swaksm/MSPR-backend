@@ -67,6 +67,10 @@ class GoalUpdateRequest(BaseModel):
     kcal_objectif: int = Field(..., ge=500, le=10000)
 
 
+class SubscriptionUpdateRequest(BaseModel):
+    abonnement: str = Field(..., example="premium")
+
+
 @router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest):
     user = fetch_one(
@@ -120,6 +124,19 @@ def update_user_goal(user_id: int, payload: GoalUpdateRequest):
         {"goal": payload.kcal_objectif, "user_id": user_id}
     )
     return {"status": "updated", "kcal_objectif": payload.kcal_objectif}
+
+
+@router.put("/users/{user_id}/subscription")
+def update_user_subscription(user_id: int, payload: SubscriptionUpdateRequest):
+    user = fetch_one("SELECT id FROM utilisateur WHERE id = :user_id", {"user_id": user_id})
+    if not user:
+        raise HTTPException(404, "Utilisateur introuvable")
+    
+    execute_write(
+        "UPDATE utilisateur SET abonnement = CAST(:sub AS type_abonnement) WHERE id = :user_id",
+        {"sub": payload.abonnement, "user_id": user_id}
+    )
+    return {"status": "updated", "abonnement": payload.abonnement}
 
 
 @router.post("/users", response_model=UserResponse)

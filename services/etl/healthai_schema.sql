@@ -76,6 +76,7 @@ CREATE TABLE utilisateur (
     poids_initial_kg NUMERIC(5,2)    CHECK (poids_initial_kg > 0),
     taille_cm        SMALLINT        CHECK (taille_cm BETWEEN 50 AND 300),
     abonnement       type_abonnement NOT NULL DEFAULT 'freemium',
+    kcal_objectif    INT             NOT NULL DEFAULT 2000,
     date_inscription TIMESTAMP       NOT NULL DEFAULT NOW(),
     actif            BOOLEAN         NOT NULL DEFAULT TRUE,
     -- Champs calculés mis à jour par trigger

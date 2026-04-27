@@ -390,6 +390,34 @@ def etl_utilisateurs_metriques(engine) -> dict:
 
     df_users = pd.DataFrame(utilisateurs)
 
+    # --- Ajout des utilisateurs de test (Freemium & Premium) ---
+    test_users = [
+        {
+            "nom": "Freemium",
+            "prenom": "Test",
+            "email": "freemium@gmail.com",
+            "mdp_hash": hashlib.sha256("freemium@gmail.com".encode()).hexdigest(),
+            "sexe": "non_renseigne",
+            "poids_initial_kg": 70,
+            "taille_cm": 175,
+            "abonnement": "freemium",
+            "imc": 22.8,
+        },
+        {
+            "nom": "Premium",
+            "prenom": "Test",
+            "email": "premium@gmail.com",
+            "mdp_hash": hashlib.sha256("premium@gmail.com".encode()).hexdigest(),
+            "sexe": "non_renseigne",
+            "poids_initial_kg": 75,
+            "taille_cm": 180,
+            "abonnement": "premium",
+            "imc": 23.1,
+        }
+    ]
+    df_test_users = pd.DataFrame(test_users)
+    df_users = pd.concat([df_users, df_test_users], ignore_index=True)
+
     # Supprimer les doublons email (si re-run)
     with engine.connect() as conn:
         try:
