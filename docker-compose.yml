@@ -53,10 +53,28 @@ services:
       - KCAL_SERVICE_URL=http://kcal:8001
       - MEAL_SERVICE_URL=http://meal:8003
       - AUTH_SERVICE_URL=http://auth:8004
+      - ADMIN_SERVICE_URL=http://admin:8006
     depends_on:
       - kcal
       - meal
       - auth
+      - admin
+
+  admin:
+    build: ./services/admin
+    ports:
+      - "8006:8006"
+    volumes:
+      - ./services/admin:/app
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=healthai
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    depends_on:
+      - db
+
 
   kcal:
     build: ./services/kcal

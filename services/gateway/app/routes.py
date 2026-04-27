@@ -7,6 +7,7 @@ router = APIRouter()
 KCAL_SERVICE_URL = os.getenv("KCAL_SERVICE_URL", "http://kcal:8001")
 MEAL_SERVICE_URL = os.getenv("MEAL_SERVICE_URL", "http://meal:8003")
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth:8004")
+ADMIN_SERVICE_URL = os.getenv("ADMIN_SERVICE_URL", "http://admin:8006")
 
 @router.api_route("/kcal/predict", methods=["POST"])
 async def predict_kcal(request: Request):
@@ -29,6 +30,8 @@ async def proxy_request(base_url: str, request: Request):
             path = path[5:]
         elif path.startswith("/meal"):
             path = path[5:]
+        elif path.startswith("/admin"):
+            path = path[6:]
         
         # Ensure path starts with /
         if not path.startswith("/"):
@@ -72,3 +75,11 @@ async def auth_root(request: Request):
 @router.api_route("/auth/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def auth_proxy(path: str, request: Request):
     return await proxy_request(AUTH_SERVICE_URL, request)
+
+@router.api_route("/admin", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def admin_root(request: Request):
+    return await proxy_request(ADMIN_SERVICE_URL, request)
+
+@router.api_route("/admin/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def admin_proxy(path: str, request: Request):
+    return await proxy_request(ADMIN_SERVICE_URL, request)
