@@ -18,9 +18,9 @@ os.chdir(str(AI_PATH))
 from analyze import analyze
 
 app = FastAPI(
-    title="JARMY",
-    description="API de l'application jarmy",
-    version="1.0.0"
+    title="HealthAI Kcal Service",
+    description="Intelligence Artificielle d'analyse nutritionnelle via Traitement du Langage Naturel (NLP).",
+    version="1.1.0"
 )
 
 app.add_middleware(
@@ -62,13 +62,17 @@ class MealResponse(BaseModel):
     items: list[FoodItemResponse] = Field(..., description="Liste des aliments détectés")
 
 
-@app.get("/")
+@app.get("/", summary="Statut du service", tags=["Système"])
 def root():
-    return {"status": "ok", "service": "JARMY API"}
+    return {"status": "ok", "service": "HealthAI IA Service"}
 
 
-@app.post("/analyze", response_model=MealResponse)
+@app.post("/analyze", response_model=MealResponse, summary="Analyser un repas par IA", tags=["Analyse IA"])
 def analyze_meal(request: MealRequest, token: str = Depends(verify_token)):
+    """
+    Extrait les aliments et quantités d'un texte libre et calcule le total calorique.
+    Requiert un Bearer Token 'clesecrete'.
+    """
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Meal text cannot be empty.")
 

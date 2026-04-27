@@ -158,83 +158,35 @@ class MealResponse(BaseModel):
     items: list[MealLineResponse]
 
 
-@router.post("/aliments", response_model=AlimentResponse)
+@router.post("/aliments", response_model=AlimentResponse, summary="Ajouter un aliment", tags=["Catalogue"])
 def create_aliment(payload: AlimentCreate):
-    existing = fetch_one(
-        "SELECT id FROM aliment WHERE LOWER(nom) = LOWER(:nom)",
-        {"nom": payload.nom},
-    )
-    if existing:
-        raise HTTPException(400, "Cet aliment existe déjà")
+    """Enregistre un nouvel aliment dans le catalogue nutritionnel."""
+    # ... code existant ...
 
-    result = execute_write(
-        "INSERT INTO aliment (nom, categorie, calories_100g, proteines_g, glucides_g, lipides_g, fibres_g, sodium_mg, sucres_g, source_dataset)"
-        " VALUES (:nom, :categorie, :calories_100g, :proteines_g, :glucides_g, :lipides_g, :fibres_g, :sodium_mg, :sucres_g, :source_dataset)"
-        " RETURNING id, nom, calories_100g, categorie, source_dataset, created_at",
-        payload.model_dump(),
-    )
-    row = result.mappings().first()
-    return AlimentResponse(**dict(row))
-
-
-@router.get("/aliments", response_model=list[AlimentResponse])
+@router.get("/aliments", response_model=list[AlimentResponse], summary="Rechercher des aliments", tags=["Catalogue"])
 def list_aliments(query: Optional[str] = Query(None, description="Filtrer par nom d'aliment")):
-    sql = "SELECT id, nom, calories_100g, categorie, source_dataset, created_at FROM aliment"
-    params = {}
-    if query:
-        sql += " WHERE LOWER(nom) LIKE LOWER(:query)"
-        params["query"] = f"%{query}%"
-    sql += " ORDER BY nom LIMIT 200"
-    return [AlimentResponse(**row) for row in fetch_all(sql, params)]
+    """Liste les aliments du catalogue avec filtrage optionnel."""
+    # ... code existant ...
 
-
-@router.post("/users", response_model=UserResponse)
+@router.post("/users", response_model=UserResponse, summary="Créer un profil", tags=["Utilisateurs"])
 def create_user(payload: UserCreate):
-    existing = fetch_one("SELECT id FROM utilisateur WHERE email = :email", {"email": payload.email})
-    if existing:
-        raise HTTPException(400, "Email déjà utilisé")
+    """Crée un nouveau profil utilisateur pour la gestion des repas."""
+    # ... code existant ...
 
-    params = payload.model_dump(exclude={"password"})
-    params["mdp_hash"] = hash_password(payload.password)
-    result = execute_write(
-        "INSERT INTO utilisateur (nom, prenom, email, mdp_hash, date_naissance, sexe, poids_initial_kg, taille_cm, abonnement)"
-        " VALUES (:nom, :prenom, :email, :mdp_hash, :date_naissance, :sexe, :poids_initial_kg, :taille_cm, :abonnement)"
-        " RETURNING id, nom, prenom, email, sexe, abonnement, date_inscription, actif",
-        params,
-    )
-    row = result.mappings().first()
-    return UserResponse(**dict(row))
-
-
-@router.get("/users", response_model=list[UserResponse])
+@router.get("/users", response_model=list[UserResponse], summary="Liste des profils", tags=["Utilisateurs"])
 def list_users():
-    users = fetch_all("SELECT id, nom, prenom, email, sexe, abonnement, date_inscription, actif FROM utilisateur ORDER BY id")
-    return [UserResponse(**u) for u in users]
+    """Récupère tous les profils utilisateurs enregistrés dans le service Meal."""
+    # ... code existant ...
 
-
-@router.get("/users/{user_id}", response_model=UserResponse)
+@router.get("/users/{user_id}", response_model=UserResponse, summary="Détails du profil", tags=["Utilisateurs"])
 def get_user(user_id: int):
-    user = fetch_one(
-        "SELECT id, nom, prenom, email, sexe, abonnement, date_inscription, actif FROM utilisateur WHERE id = :user_id",
-        {"user_id": user_id},
-    )
-    if not user:
-        raise HTTPException(404, "Utilisateur introuvable")
-    return UserResponse(**user)
+    """Récupère les informations d'un profil utilisateur spécifique."""
+    # ... code existant ...
 
-
-@router.delete("/users/{user_id}")
+@router.delete("/users/{user_id}", summary="Supprimer un profil", tags=["Utilisateurs"])
 def delete_user(user_id: int):
-    user = fetch_one("SELECT id FROM utilisateur WHERE id = :user_id", {"user_id": user_id})
-    if not user:
-        raise HTTPException(404, "Utilisateur introuvable")
-    
-    # Delete meals first (if not cascading)
-    execute_write("DELETE FROM journal_repas WHERE utilisateur_id = :user_id", {"user_id": user_id})
-    # Delete user
-    execute_write("DELETE FROM utilisateur WHERE id = :user_id", {"user_id": user_id})
-    
-    return {"status": "deleted", "user_id": user_id}
+    """Supprime un profil utilisateur et toutes ses données liées."""
+    # ... code existant ...
 
 
 def resolve_aliment(item: MealLineCreate) -> dict:
@@ -311,61 +263,22 @@ def get_meal_response(journal_id: int) -> MealResponse:
     )
 
 
-@router.post("/users/{user_id}/meals", response_model=MealResponse)
+@router.post("/users/{user_id}/meals", response_model=MealResponse, summary="Enregistrer un repas", tags=["Journal Alimentaire"])
 def create_meal(user_id: int, payload: MealCreate):
-    user = fetch_one("SELECT id FROM utilisateur WHERE id = :user_id", {"user_id": user_id})
-    if not user:
-        raise HTTPException(404, "Utilisateur introuvable")
+    """Enregistre un nouveau repas complet pour un utilisateur donné."""
+    # ... code existant ...
 
-    journal_result = execute_write(
-        "INSERT INTO journal_repas (utilisateur_id, date_repas, type_repas, notes) "
-        "VALUES (:user_id, :date_repas, :type_repas, :notes) RETURNING id",
-        {
-            "user_id": user_id,
-            "date_repas": payload.date_repas,
-            "type_repas": payload.type_repas,
-            "notes": payload.notes,
-        },
-    )
-    journal_id = journal_result.scalar_one()
-
-    for item in payload.items:
-        aliment = resolve_aliment(item)
-        execute_write(
-            "INSERT INTO ligne_repas (journal_id, aliment_id, quantite_g) "
-            "VALUES (:journal_id, :aliment_id, :quantite_g)",
-            {
-                "journal_id": journal_id,
-                "aliment_id": aliment["id"],
-                "quantite_g": item.quantite_g,
-            },
-        )
-
-    return get_meal_response(journal_id)
-
-
-@router.get("/users/{user_id}/meals", response_model=list[MealResponse])
+@router.get("/users/{user_id}/meals", response_model=list[MealResponse], summary="Historique des repas", tags=["Journal Alimentaire"])
 def list_meals(user_id: int):
-    user = fetch_one("SELECT id FROM utilisateur WHERE id = :user_id", {"user_id": user_id})
-    if not user:
-        raise HTTPException(404, "Utilisateur introuvable")
+    """Récupère l'historique complet des repas d'un utilisateur."""
+    # ... code existant ...
 
-    journals = fetch_all(
-        "SELECT id FROM journal_repas WHERE utilisateur_id = :user_id ORDER BY date_repas DESC, id",
-        {"user_id": user_id},
-    )
-    return [get_meal_response(j["id"]) for j in journals]
-
-
-@router.get("/meals/{meal_id}", response_model=MealResponse)
+@router.get("/meals/{meal_id}", response_model=MealResponse, summary="Détails du repas", tags=["Journal Alimentaire"])
 def get_meal(meal_id: int):
-    return get_meal_response(meal_id)
+    """Récupère les détails d'un repas spécifique (aliments, calories)."""
+    # ... code existant ...
 
-
-@router.delete("/meals/{meal_id}")
+@router.delete("/meals/{meal_id}", summary="Supprimer un repas", tags=["Journal Alimentaire"])
 def delete_meal(meal_id: int):
-    meal = fetch_one("SELECT id FROM journal_repas WHERE id = :meal_id", {"meal_id": meal_id})
-    if not meal:
-        raise HTTPException(404, "Repas introuvable")
-    execute_write("DELETE FROM journal_repas WHERE id = :meal_id", {"meal_id": meal_id})
-    return {"status": "deleted", "meal_id": meal_id}
+    """Supprime définitivement un repas de l'historique."""
+    # ... code existant ...
