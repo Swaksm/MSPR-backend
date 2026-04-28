@@ -28,8 +28,10 @@ class CorrectionRequest(BaseModel):
 # -------------------------------------------------------------
 
 @router.get("/users", summary="Lister les utilisateurs (Admin)", tags=["CRUD"])
-def admin_get_users():
-    return fetch_all("SELECT * FROM utilisateur ORDER BY id DESC")
+def admin_get_users(limit: int = 50, offset: int = 0):
+    total = fetch_one("SELECT COUNT(*) FROM utilisateur")["count"]
+    data = fetch_all("SELECT * FROM utilisateur ORDER BY id DESC LIMIT :limit OFFSET :offset", {"limit": limit, "offset": offset})
+    return {"data": data, "total": total}
 
 @router.put("/users/{user_id}", summary="Mettre à jour un utilisateur", tags=["CRUD"])
 def admin_update_user(user_id: int, payload: dict):
@@ -53,12 +55,22 @@ def admin_delete_user(user_id: int):
     return {"status": "deleted"}
 
 @router.get("/foods", summary="Lister les aliments", tags=["CRUD"])
-def admin_get_foods():
-    return fetch_all("SELECT * FROM aliment ORDER BY id DESC LIMIT 500")
+def admin_get_foods(limit: int = 50, offset: int = 0):
+    total = fetch_one("SELECT COUNT(*) FROM aliment")["count"]
+    data = fetch_all("SELECT * FROM aliment ORDER BY id DESC LIMIT :limit OFFSET :offset", {"limit": limit, "offset": offset})
+    return {"data": data, "total": total}
 
 @router.get("/exercises", summary="Lister les exercices", tags=["CRUD"])
-def admin_get_exercises():
-    return fetch_all("SELECT * FROM exercice ORDER BY id DESC LIMIT 500")
+def admin_get_exercises(limit: int = 50, offset: int = 0):
+    total = fetch_one("SELECT COUNT(*) FROM exercice")["count"]
+    data = fetch_all("SELECT * FROM exercice ORDER BY id DESC LIMIT :limit OFFSET :offset", {"limit": limit, "offset": offset})
+    return {"data": data, "total": total}
+
+@router.get("/metrics", summary="Lister les métriques quotidiennes", tags=["CRUD"])
+def admin_get_metrics(limit: int = 50, offset: int = 0):
+    total = fetch_one("SELECT COUNT(*) FROM metrique_quotidienne")["count"]
+    data = fetch_all("SELECT * FROM metrique_quotidienne ORDER BY id DESC LIMIT :limit OFFSET :offset", {"limit": limit, "offset": offset})
+    return {"data": data, "total": total}
 
 # -------------------------------------------------------------
 # QUALITÉ DES DONNÉES & ETL
@@ -66,12 +78,33 @@ def admin_get_exercises():
 
 @router.get("/data-quality", summary="Analyse qualité des données", tags=["Qualité"])
 def get_data_quality():
-    missing_goals = fetch_all("SELECT id, nom, prenom, email FROM utilisateur WHERE kcal_objectif IS NULL OR kcal_objectif = 0 LIMIT 10")
-    invalid_weights = fetch_all("SELECT id, nom, prenom, poids_initial_kg as value FROM utilisateur WHERE poids_initial_kg < 30 OR poids_initial_kg > 200 LIMIT 10")
-    zero_cal_foods = fetch_all("SELECT id, nom, calories_100g as value FROM aliment WHERE calories_100g = 0 LIMIT 10")
+    # Détails des anomalies
+    missing_goals = fetch_all("SELECT id, nom, prenom, email FROM utilisateur WHERE kcal_objectif IS NULL OR kcal_objectif = 0 LIMIT 20")
+    invalid_weights = fetch_all("SELECT id, nom, prenom, poids_initial_kg as value FROM utilisateur WHERE poids_initial_kg < 30 OR poids_initial_kg > 200 LIMIT 20")
+    zero_cal_foods = fetch_all("SELECT id, nom, calories_100g as value FROM aliment WHERE calories_100g = 0 LIMIT 20")
     etl_logs = fetch_all("SELECT * FROM etl_run_log ORDER BY id DESC LIMIT 10")
     
+    # Statistiques globales pour le score
+    nb_users = fetch_one("SELECT COUNT(*) FROM utilisateur")["count"] or 1
+    nb_foods = fetch_one("SELECT COUNT(*) FROM aliment")["count"] or 1
+    
+    # Calcul du score (base 100)
+    penalite_goals = min(len(missing_goals) * 2, 30)
+    penalite_weights = min(len(invalid_weights) * 2, 30)
+    penalite_foods = min(len(zero_cal_foods) * 0.5, 40)
+    
+    score = max(0, 100 - (penalite_goals + penalite_weights + penalite_foods))
+    
     return {
+        "score_qualite": int(score),
+        "statistiques": {
+            "nb_utilisateurs": nb_users,
+            "nb_aliments": nb_foods,
+            "users_sans_poids": len(missing_goals),
+            "aliments_calories_nulles": len(zero_cal_foods),
+            "nb_exercices": fetch_one("SELECT COUNT(*) FROM exercice")["count"],
+            "nb_metriques": fetch_one("SELECT COUNT(*) FROM metrique_quotidienne")["count"]
+        },
         "anomalies": {
             "users_missing_goals": {"count": len(missing_goals), "samples": missing_goals},
             "users_unrealistic_weight": {"count": len(invalid_weights), "samples": invalid_weights},
@@ -103,7 +136,6 @@ def correct_data(payload: CorrectionRequest):
     if payload.table_name not in allowed_tables:
         raise HTTPException(400, "Table non autorisée")
     
-    # Conversion de type sécurisée
     val = payload.new_value
     if payload.column_name in ["kcal_objectif", "calories_100g", "poids_initial_kg", "taille_cm"]:
         try:

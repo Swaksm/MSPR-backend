@@ -24,6 +24,7 @@ class LoginResponse(BaseModel):
     email: EmailStr | None = Field(None, description="Email de l'utilisateur connecté")
     prenom: str | None = Field(None, description="Prénom de l'utilisateur")
     nom: str | None = Field(None, description="Nom de famille de l'utilisateur")
+    abonnement: str | None = Field(None, description="Type d'abonnement")
 
 class UserCreate(BaseModel):
     nom: str = Field(..., min_length=2, description="Nom de famille")
@@ -59,9 +60,9 @@ class SubscriptionUpdateRequest(BaseModel):
 
 @router.post("/login", response_model=LoginResponse, summary="Authentification utilisateur", description="Vérifie les identifiants et retourne les informations de l'utilisateur.")
 def login(payload: LoginRequest):
-    # ... (code existant)
+    # Authentification simplifiée
     user = fetch_one(
-        "SELECT id, email, mdp_hash, actif, prenom, nom FROM utilisateur WHERE email = :email",
+        "SELECT id, email, mdp_hash, actif, prenom, nom, abonnement FROM utilisateur WHERE email = :email",
         {"email": payload.email},
     )
     if not user:
@@ -80,6 +81,7 @@ def login(payload: LoginRequest):
         email=user["email"],
         prenom=user["prenom"],
         nom=user["nom"],
+        abonnement=user["abonnement"],
     )
 
 
