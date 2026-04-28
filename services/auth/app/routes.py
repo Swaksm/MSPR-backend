@@ -3,6 +3,8 @@ from hashlib import sha256
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 from fastapi import APIRouter, HTTPException
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 from database import fetch_one, fetch_all, execute_write
 
@@ -16,6 +18,9 @@ def hash_password(raw_password: str) -> str:
 class LoginRequest(BaseModel):
     email: EmailStr = Field(..., example="premium@gmail.com", description="L'adresse email de l'utilisateur")
     password: str = Field(..., min_length=6, example="premium@gmail.com", description="Le mot de passe de l'utilisateur")
+
+class GoogleLoginRequest(BaseModel):
+    token: str = Field(..., description="Le JWT ID Token envoyé par Google")
 
 class LoginResponse(BaseModel):
     success: bool = Field(..., description="Indique si l'authentification a réussi")
@@ -60,7 +65,6 @@ class SubscriptionUpdateRequest(BaseModel):
 
 @router.post("/login", response_model=LoginResponse, summary="Authentification utilisateur", description="Vérifie les identifiants et retourne les informations de l'utilisateur.")
 def login(payload: LoginRequest):
-    # Authentification simplifiée
     user = fetch_one(
         "SELECT id, email, mdp_hash, actif, prenom, nom, abonnement FROM utilisateur WHERE email = :email",
         {"email": payload.email},
@@ -84,6 +88,50 @@ def login(payload: LoginRequest):
         abonnement=user["abonnement"],
     )
 
+GOOGLE_CLIENT_ID = "797890274251-agr9jkkdqrtqle8r4j9ct8mk1d8j9af2.apps.googleusercontent.com"
+
+@router.post("/google-login", response_model=LoginResponse, summary="Connexion via Google")
+def google_login(payload: GoogleLoginRequest):
+    try:
+        # Vérification sécurisée avec l'ID Client
+        idinfo = id_token.verify_oauth2_token(payload.token, google_requests.Request(), GOOGLE_CLIENT_ID)
+
+        email = idinfo['email']
+        prenom = idinfo.get('given_name', 'User')
+        nom = idinfo.get('family_name', 'Google')
+
+        user = fetch_one(
+            "SELECT id, email, actif, prenom, nom, abonnement FROM utilisateur WHERE email = :email",
+            {"email": email},
+        )
+
+        if not user:
+            # Création automatique de l'utilisateur SSO
+            result = execute_write(
+                "INSERT INTO utilisateur (nom, prenom, email, mdp_hash, abonnement) "
+                "VALUES (:nom, :prenom, :email, 'SSO_GOOGLE', 'freemium') RETURNING id",
+                {"nom": nom, "prenom": prenom, "email": email}
+            )
+            # Fetch the newly created user
+            user = fetch_one(
+                "SELECT id, email, actif, prenom, nom, abonnement FROM utilisateur WHERE email = :email",
+                {"email": email},
+            )
+        
+        if not user["actif"]:
+            raise HTTPException(status_code=403, detail="Utilisateur inactif.")
+
+        return LoginResponse(
+            success=True,
+            message="Connexion Google réussie.",
+            user_id=user["id"],
+            email=user["email"],
+            prenom=user["prenom"],
+            nom=user["nom"],
+            abonnement=user["abonnement"]
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Jeton Google invalide.")
 
 @router.get("/users", response_model=list[UserResponse], summary="Liste des utilisateurs", tags=["Gestion Utilisateurs"])
 def list_users():
