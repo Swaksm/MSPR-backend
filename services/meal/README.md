@@ -1,157 +1,54 @@
-# Meal Service
+# 🍽️ JARMY - Meal Service
 
-Service de gestion des repas et du catalogue alimentaire.
+Le service **Meal** gère l'inventaire des aliments et le journal alimentaire des utilisateurs. C'est ici que sont stockées toutes les informations nutritionnelles et l'historique des repas.
 
-## 🚀 Endpoints
+## 🚀 Fonctionnalités
+- Catalogue nutritionnel complet (Calories, Protéines, Glucides, Lipides).
+- Recherche d'aliments par mot-clé.
+- Enregistrement de repas multi-lignes.
+- Historique des repas par utilisateur.
 
-### 🍎 Catalogue Alimentaire
+## 🛠️ Endpoints Principaux
 
-#### `GET /aliments`
-Liste les aliments du catalogue. Filtrable par nom.
+### Catalogue Alimentaire
+| Méthode | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/aliments` | Rechercher des aliments (query params). |
+| `POST` | `/aliments` | Ajouter un nouvel aliment au catalogue. |
 
-**Query Params :** `?query=riz` (optionnel)
+### Journal Alimentaire
+| Méthode | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/users/{id}/meals` | Historique complet des repas d'un utilisateur. |
+| `POST` | `/users/{id}/meals` | Enregistrer un nouveau repas (plusieurs items). |
+| `GET` | `/meals/{id}` | Détails d'un repas spécifique. |
+| `DELETE` | `/meals/{id}` | Supprimer un repas. |
 
-**Success Response (200 OK) :**
-```json
-[
-  {
-    "id": 1,
-    "nom": "Riz blanc",
-    "calories_100g": 130.0,
-    "categorie": "Féculents",
-    "source_dataset": "manual",
-    "created_at": "2026-04-26T10:00:00"
-  }
-]
-```
+## 📝 Exemples de Payload
 
-#### `POST /aliments`
-Ajoute un nouvel aliment au catalogue mondial.
-
-**Request Body :**
+### Enregistrer un repas (Petit-déjeuner)
 ```json
 {
-  "nom": "Banane",
-  "calories_100g": 89,
-  "categorie": "Fruits",
-  "proteines_g": 1.1,
-  "glucides_g": 22.8,
-  "lipides_g": 0.3
-}
-```
-
-**Success Response (201 Created) :**
-```json
-{
-  "id": 10,
-  "nom": "Banane",
-  "calories_100g": 89.0,
-  "categorie": "Fruits",
-  "source_dataset": "manual",
-  "created_at": "2026-04-26T12:00:00"
-}
-```
-
----
-
-### 🍽️ Gestion des Repas
-
-#### `POST /users/{user_id}/meals`
-Enregistre un nouveau repas pour un utilisateur.
-
-**Request Body :**
-```json
-{
-  "type_repas": "dejeuner",
-  "date_repas": "2026-04-26",
-  "notes": "Déjeuner équilibré",
+  "type_repas": "petit_dejeuner",
+  "date_repas": "2026-04-28",
+  "notes": "Très bon petit-déjeuner",
   "items": [
     {
-      "aliment_id": 1,
-      "quantite_g": 150
+      "aliment_id": 42,
+      "quantite_g": 200
     },
     {
-      "aliment_nom": "Poulet grillé",
-      "quantite_g": 100,
-      "calories_100g": 165,
-      "categorie": "Viandes"
+      "aliment_nom": "Banane",
+      "quantite_g": 120,
+      "calories_100g": 89,
+      "categorie": "Fruits"
     }
   ]
 }
 ```
 
-**Success Response (201 Created) :**
-```json
-{
-  "id": 5,
-  "utilisateur_id": 1,
-  "date_repas": "2026-04-26",
-  "type_repas": "dejeuner",
-  "notes": "Déjeuner équilibré",
-  "created_at": "2026-04-26T12:30:00",
-  "total_calories": 360.0,
-  "items": [
-    {
-      "id": 12,
-      "aliment_id": 1,
-      "aliment_nom": "Riz blanc",
-      "quantite_g": 150.0,
-      "calories_calculees": 195.0,
-      "calories_100g": 130.0,
-      "categorie": "Féculents",
-      "source_dataset": "manual"
-    },
-    {
-      "id": 13,
-      "aliment_id": 15,
-      "aliment_nom": "Poulet grillé",
-      "quantite_g": 100.0,
-      "calories_calculees": 165.0,
-      "calories_100g": 165.0,
-      "categorie": "Viandes",
-      "source_dataset": "manual"
-    }
-  ]
-}
-```
-
-#### `GET /users/{user_id}/meals`
-Récupère l'historique complet des repas d'un utilisateur.
-
-**Success Response (200 OK) :**
-```json
-[
-  {
-    "id": 5,
-    "utilisateur_id": 1,
-    "date_repas": "2026-04-26",
-    "type_repas": "dejeuner",
-    "total_calories": 360.0,
-    "items": [...]
-  }
-]
-```
-
-#### `GET /meals/{meal_id}`
-Détails d'un repas spécifique.
-
-**Success Response (200 OK) :**
-*(Identique au format de retour du POST meal)*
-
-#### `DELETE /meals/{meal_id}`
-Supprime un repas de l'historique.
-
-**Success Response (200 OK) :**
-```json
-{
-  "status": "deleted",
-  "meal_id": 5
-}
-```
-
-## 🛠️ Installation & Lancement
-```bash
-cd services/meal
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8003 --reload
-```
+## 🧠 Intelligence de Résolution
+Le service possède une logique de résolution d'aliments :
+1. Si un `aliment_id` est fourni, il l'utilise.
+2. Sinon, il cherche par `aliment_nom` dans la base.
+3. Si rien n'est trouvé, il crée automatiquement un nouvel aliment avec les infos fournies.

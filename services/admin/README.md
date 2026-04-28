@@ -1,42 +1,54 @@
-# Admin Service (Management & Analytics)
+# 📊 JARMY - Admin Service
 
-Ce microservice gère les fonctions avancées de JARMY : administration des utilisateurs, contrôle qualité des données, exécution du pipeline ETL et fourniture de métriques analytiques.
+Le service **Admin** est le module de supervision de la plateforme. Il permet aux administrateurs de piloter les données, de surveiller la qualité et de visualiser les analytics business.
 
 ## 🚀 Fonctionnalités
-*   **CRUD Admin :** Gestion complète des utilisateurs, aliments et exercices.
-*   **Contrôle Qualité :** Détection et correction interactive des anomalies (objectifs manquants, poids invalides).
-*   **Orchestration ETL :** Déclenchement manuel ou planifié (via `apscheduler`) du pipeline de données.
-*   **Analytics :** Endpoints dédiés pour les graphiques (démographie, nutrition, fitness).
-*   **Export :** Génération de dumps JSON complets de la base de données.
+- Dashboard de **Qualité de Donnée** (Score sur 100).
+- Gestion CRUD (Utilisateurs, Aliments, Exercices).
+- Déclenchement manuel du pipeline ETL.
+- Export complet de la base de données au format JSON.
+- Visualisation des Jobs ETL passés.
 
-## 🛠️ Installation
-Le service utilise FastAPI et communique avec la base PostgreSQL partagée.
-```bash
-cd services/admin
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8006
-```
+## 🛠️ Endpoints Principaux
 
-## 📡 Endpoints Principaux
+### Gestion des données (CRUD)
+| Méthode | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/users` | Liste paginée des utilisateurs. |
+| `PUT` | `/users/{id}` | Mise à jour forcée d'un profil. |
+| `DELETE` | `/users/{id}` | Suppression définitive d'un compte. |
+| `GET` | `/foods` | Liste complète du catalogue alimentaire. |
 
-### Gestion
-*   `GET /users` : Liste complète des utilisateurs avec métriques.
-*   `PUT /users/{id}` : Mise à jour administrative d'un compte.
-*   `DELETE /users/{id}` : Suppression sécurisée (cascade).
-
-### Qualité & ETL
-*   `GET /data-quality` : Analyse des anomalies et historique des jobs.
-*   `POST /etl/run` : Lance un nouveau run du pipeline de données.
-*   `PUT /data/correct` : Corrige une valeur spécifique dans une table (Correction interactive).
-*   `GET /export` : Télécharge un export JSON.
+### Qualité & Système
+| Méthode | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/data-quality` | Rapport d'anomalies et score qualité. |
+| `POST` | `/etl/run` | Lancer une synchronisation ETL (Datasets). |
+| `GET` | `/export` | Télécharger un dump JSON de la base. |
+| `PUT` | `/data/correct` | Corriger une valeur précise en base. |
 
 ### Analytics
-*   `GET /analytics/users` : Inscriptions dans le temps et répartition par genre.
-*   `GET /analytics/nutrition` : Volume de repas et moyennes caloriques.
-*   `GET /analytics/fitness` : Exercices les plus populaires.
+| Méthode | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/analytics/users` | Répartition par sexe et historique inscriptions. |
+| `GET` | `/analytics/nutrition` | Tendances de consommation (kcal moyen). |
+| `GET` | `/analytics/fitness` | Top exercices pratiqués. |
 
-## 🗄️ Base de données
-Utilise les vues SQL définies dans le schéma global :
-*   `vue_kpis_business`
-*   `vue_stats_activite`
-*   `etl_run_log` (pour l'historique)
+## 📝 Exemples de Payload
+
+### Correction manuelle
+`PUT /data/correct`
+```json
+{
+  "table_name": "utilisateur",
+  "id": 12,
+  "column_name": "poids_initial_kg",
+  "new_value": 82.5
+}
+```
+
+## 📈 Score de Qualité
+Le score est calculé dynamiquement en fonction :
+- Du nombre d'utilisateurs sans objectifs caloriques.
+- Des poids irréalistes enregistrés.
+- Des aliments avec 0 calories dans le catalogue.

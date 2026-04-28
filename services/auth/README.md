@@ -1,136 +1,59 @@
-# Auth Service
+# 🛡️ JARMY - Auth Service
 
-Service de gestion des utilisateurs et d'authentification.
+Le service **Auth** est responsable de la gestion des utilisateurs, de la sécurité et des profils. Il assure l'authentification classique (email/password) et l'intégration SSO avec Google.
 
-## 🚀 Endpoints
+## 🚀 Fonctionnalités
+- Inscription et Connexion.
+- Intégration **Google OAuth2** (Vérification des ID Tokens).
+- Gestion des profils (Objectifs caloriques, Poids, Taille).
+- Gestion des abonnements (Freemium, Premium, Premium Plus).
+- Statistiques globales pour l'administration.
 
-### 🔐 Authentification
+## 🛠️ Endpoints Principaux
 
-#### `POST /login`
-Authentifie un utilisateur et retourne ses informations de profil.
+### Authentification
+| Méthode | Path | Description |
+| :--- | :--- | :--- |
+| `POST` | `/login` | Connexion classique. |
+| `POST` | `/google-login` | Connexion via Google SSO. |
+| `POST` | `/users` | Création de compte. |
 
-**Request Body :**
+### Profil & Paramètres
+| Méthode | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/users/{id}` | Récupérer les infos d'un utilisateur. |
+| `PUT` | `/users/{id}/goal` | Mettre à jour l'objectif kcal. |
+| `PUT` | `/users/{id}/subscription` | Modifier l'abonnement (Admin). |
+
+### Administration & Stats
+| Méthode | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/stats/global` | KPI globaux (conversions, totaux). |
+| `GET` | `/users` | Liste complète des utilisateurs. |
+
+## 📝 Exemples de Payload
+
+### Login Google
 ```json
 {
-  "email": "jean.dupont@example.com",
-  "password": "secret123"
+  "token": "eyJhbGciOiJSUzI1NiIs..."
 }
 ```
 
-**Success Response (200 OK) :**
+### Création d'utilisateur
 ```json
 {
-  "success": true,
-  "message": "Authentification réussie.",
-  "user_id": 1,
-  "email": "jean.dupont@example.com",
+  "nom": "Dupont",
   "prenom": "Jean",
-  "nom": "Dupont"
+  "email": "jean.dupont@example.com",
+  "password": "secret_password",
+  "sexe": "homme",
+  "poids_initial_kg": 75.5,
+  "taille_cm": 180
 }
 ```
 
----
-
-### 👤 Gestion Utilisateurs
-
-#### `GET /users`
-Liste tous les utilisateurs enregistrés.
-
-**Success Response (200 OK) :**
-```json
-[
-  {
-    "id": 1,
-    "nom": "Dupont",
-    "prenom": "Jean",
-    "email": "jean.dupont@example.com",
-    "sexe": "homme",
-    "abonnement": "freemium",
-    "date_inscription": "2026-04-25T23:10:35",
-    "actif": true,
-    "date_naissance": "1990-01-01",
-    "poids_initial_kg": 75.5,
-    "taille_cm": 180,
-    "kcal_objectif": 2200
-  }
-]
-```
-
-#### `GET /users/{user_id}`
-Récupère les détails d'un utilisateur spécifique.
-
-**Success Response (200 OK) :**
-*(Identique à un objet de la liste ci-dessus)*
-
-#### `POST /users`
-Crée un nouveau compte utilisateur.
-
-**Request Body :**
-```json
-{
-  "nom": "Martin",
-  "prenom": "Sophie",
-  "email": "sophie.martin@example.com",
-  "password": "password123",
-  "date_naissance": "1995-06-15",
-  "sexe": "femme",
-  "poids_initial_kg": 62.0,
-  "taille_cm": 165,
-  "abonnement": "freemium",
-  "kcal_objectif": 1800
-}
-```
-
-**Success Response (201 Created) :**
-```json
-{
-  "id": 2,
-  "nom": "Martin",
-  "prenom": "Sophie",
-  "email": "sophie.martin@example.com",
-  "sexe": "femme",
-  "abonnement": "freemium",
-  "date_inscription": "2026-04-26T12:00:00",
-  "actif": true,
-  "date_naissance": "1995-06-15",
-  "poids_initial_kg": 62.0,
-  "taille_cm": 165,
-  "kcal_objectif": 1800
-}
-```
-
-#### `PUT /users/{user_id}/goal`
-Met à jour l'objectif calorique quotidien.
-
-**Request Body :**
-```json
-{
-  "kcal_objectif": 2500
-}
-```
-
-**Success Response (200 OK) :**
-```json
-{
-  "status": "updated",
-  "kcal_objectif": 2500
-}
-```
-
-#### `DELETE /users/{user_id}`
-Supprime un utilisateur et toutes ses données associées (repas, etc.).
-
-**Success Response (200 OK) :**
-```json
-{
-  "status": "deleted",
-  "user_id": 1
-}
-```
-
-## 🛠️ Installation & Lancement
-```bash
-cd services/auth
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8004 --reload
-```
+## ⚙️ Configuration
+Le service utilise les variables d'environnement suivantes (définies dans `docker-compose.yml`) :
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+- `GOOGLE_CLIENT_ID` (Optionnel pour validation stricte)

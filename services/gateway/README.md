@@ -1,30 +1,30 @@
-# Gateway Service
+# ⚡ JARMY - Gateway Service
 
-Proxy centralisant les appels API pour les différents microservices de HealthAI.
+La **Gateway** est le point de contact unique entre le Frontend (Next.js) et la constellation de microservices JARMY. Elle simplifie la communication en centralisant les URLs et en gérant les problématiques transversales.
 
-## 🚀 Routes Exposées (Port 8000)
+## 🚀 Fonctionnalités
+- **Routage Intelligent** : Redirige les requêtes vers le bon microservice en fonction du préfixe d'URL.
+- **Abstraction** : Le frontend ne connaît qu'une seule URL (Port 8000).
+- **CORS Centralisé** : Autorise les requêtes provenant de n'importe quelle origine (configuré pour le développement).
+- **Proxy d'Analyse IA** : Simplifie l'accès au service Kcal.
 
-Le gateway redirige les appels vers les services internes :
+## 🛠️ Routage (Mapping)
 
-- `/auth/*` ➔ **Auth Service** (Port 8004)
-- `/meal/*` ➔ **Meal Service** (Port 8003)
-- `/kcal/predict` ➔ **Kcal Service** `/analyze` (Port 8001)
+| Préfixe | Service Cible | Description |
+| :--- | :--- | :--- |
+| `/auth/*` | `http://auth:8004/*` | Authentification & Profils. |
+| `/meal/*` | `http://meal:8003/*` | Repas & Aliments. |
+| `/admin/*` | `http://admin:8006/*` | Administration & Stats. |
+| `/kcal/predict` | `http://kcal:8001/analyze` | Analyse NLP. |
 
-## 🛠️ Installation & Lancement
+## ⚙️ Configuration
+La Gateway utilise les variables d'environnement pour localiser les services internes dans le réseau Docker :
+- `AUTH_SERVICE_URL`
+- `MEAL_SERVICE_URL`
+- `KCAL_SERVICE_URL`
+- `ADMIN_SERVICE_URL`
 
-```bash
-cd services/gateway
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-## 📝 Exemples d'appels via le Gateway
-
-### Connexion
-`POST http://localhost:8000/auth/login`
-
-### Ajout de repas
-`POST http://localhost:8000/meal/users/1/meals`
-
-### Analyse Kcal
-`POST http://localhost:8000/kcal/predict`
+## 📝 Exemple d'Utilisation Frontend
+Au lieu d'appeler plusieurs serveurs, le frontend utilise une base commune :
+`GET http://localhost:8000/auth/users/1` -> Proxy vers Auth Service.
+`POST http://localhost:8000/meal/aliments` -> Proxy vers Meal Service.

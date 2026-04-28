@@ -1,36 +1,30 @@
-# ETL Service
+# 🔄 JARMY - ETL Service
 
-Service de pipeline ETL (Extract, Transform, Load) pour le chargement des données.
+Le service **ETL** (Extract, Transform, Load) est le moteur de données de JARMY. Il est chargé d'alimenter la base de données avec des datasets externes de haute qualité et de maintenir la cohérence du référentiel.
 
-## 🚀 Endpoints
+## 🚀 Fonctionnalités
+- Importation de datasets **Kaggle** (Nutrition, Gym, Fitness Tracker).
+- Nettoyage et transformation des données (normalisation des unités).
+- Déduplication des entrées.
+- Planification automatique (APScheduler).
+- Journalisation détaillée des exécutions (`etl_run_log`).
 
-#### `POST /etl/run`
-Déclenche le pipeline de traitement des données en arrière-plan.
+## 🛠️ Endpoints Principaux
 
-**Authentification :** `Bearer clesecrete`
+| Méthode | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/health` | Statut du service. |
+| `POST` | `/etl/run` | Déclencher manuellement le pipeline (Background Task). |
 
-**Success Response (202 Accepted) :**
-```json
-{
-  "status": "started",
-  "message": "ETL pipeline has been started in the background. Check logs for progress."
-}
-```
+## 🏗️ Pipeline de Données
+Le pipeline s'exécute en 4 étapes :
+1. **Extraction** : Lecture des fichiers CSV dans `data/`.
+2. **Transformation** : Filtrage des colonnes inutiles, conversion des types, calculs nutritionnels.
+3. **Chargement** : Insertion massive (Bulk Insert) dans PostgreSQL.
+4. **Log** : Enregistrement du statut (`SUCCESS` ou `ERROR`) et du nombre de lignes traitées.
 
-#### `GET /health`
-Vérifie la santé du service.
+## ⚙️ Schedulers
+Par défaut, l'ETL est configuré pour se lancer tous les jours à minuit (`cron: hour=0, minute=0`). Cette configuration est modifiable dans `main.py`.
 
-**Success Response (200 OK) :**
-```json
-{
-  "status": "ok",
-  "service": "healthai_etl"
-}
-```
-
-## 🛠️ Installation & Lancement
-```bash
-cd services/etl
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8002 --reload
-```
+## 🔒 Sécurité
+Comme le service Kcal, les opérations critiques requièrent un Bearer Token : `clesecrete`.

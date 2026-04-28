@@ -1,49 +1,48 @@
-# Kcal Service (JARMY AI)
+# 🧠 JARMY - Kcal IA Service
 
-Service d'analyse nutritionnelle par Intelligence Artificielle.
+Le service **Kcal** est le moteur d'intelligence artificielle de JARMY. Il utilise le traitement du langage naturel (NLP) pour transformer une simple phrase en données structurées (aliments, poids, calories).
 
-## 🚀 Endpoints
+## 🚀 Fonctionnalités
+- Extraction d'entités nommées (NER) avec **SpaCy**.
+- Détection automatique des quantités et unités (g, ml, kg, oz, etc.).
+- Calcul instantané des calories basées sur une base de données embarquée.
+- Reconnaissance des synonymes et corrections orthographiques légères.
 
-#### `POST /analyze`
-Analyse un texte en langage naturel pour extraire les données nutritionnelles.
+## 🛠️ Endpoints Principaux
 
-**Authentification :** `Bearer clesecrete`
+| Méthode | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/` | Health check et statut du service. |
+| `POST` | `/analyze` | Analyser un texte et retourner les kcal. |
 
-**Request Body :**
+## 📝 Exemples de Requêtes
+
+### Analyser un repas
+`POST /analyze`
 ```json
 {
-  "text": "266g of rice and chicken and for the dessert i ate an ice cream"
+  "text": "J'ai mangé 200g de poulet, du riz blanc et une pomme"
 }
 ```
 
-**Success Response (200 OK) :**
+**Réponse (exemple) :**
 ```json
 {
-  "total_kcal": 850.5,
-  "message": "Repas analysé avec succès",
+  "total_kcal": 542.0,
+  "message": "Ce repas contient environ 542 kcal.",
   "items": [
-    {
-      "food": "rice",
-      "grams": 266.0,
-      "kcal": 345.8
-    },
-    {
-      "food": "chicken",
-      "grams": 150.0,
-      "kcal": 247.5
-    },
-    {
-      "food": "ice cream",
-      "grams": 100.0,
-      "kcal": 257.2
-    }
+    { "food": "roast chicken", "grams": 200.0, "kcal": 330.0 },
+    { "food": "rice", "grams": 180.0, "kcal": 158.0 },
+    { "food": "apple", "grams": 150.0, "kcal": 54.0 }
   ]
 }
 ```
 
-## 🛠️ Installation & Lancement
-```bash
-cd services/kcal
-pip install -r requirements.txt
-python -m uvicorn main:app --host 0.0.0.0 --port 8001 --reload
-```
+## 🏗️ Architecture IA
+Le dossier `ia-kcal` contient le moteur :
+- `nlp/` : Modèles SpaCy entraînés et scripts d'entraînement.
+- `data/` : Dictionnaires nutritionnels de référence.
+- `analyze.py` : Logique de haut niveau pour l'agrégation des résultats.
+
+## 🔒 Sécurité
+L'accès à l'API requiert un Bearer Token : `clesecrete` (configurable dans `main.py`).
