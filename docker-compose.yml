@@ -116,6 +116,30 @@ services:
       - DB_PASSWORD=postgres
     depends_on:
       - db
+mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  activity-logs:
+    build: ./services/activity-logs
+    ports:
+      - "8005:8005"
+    volumes:
+      - ./services/activity-logs:/app
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - MONGO_DB=healthai_logs
+    depends_on:
+      mongo:
+        condition: service_healthy
 volumes:
   postgres_data:
+  mongo_data:
