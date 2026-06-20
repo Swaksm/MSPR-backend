@@ -1,12 +1,24 @@
 from datetime import date, datetime
 from hashlib import sha256
 from typing import Optional
+import threading
+import httpx
 from pydantic import BaseModel, EmailStr, Field
 from fastapi import APIRouter, HTTPException
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 from database import fetch_one, fetch_all, execute_write
+
+LOGS_URL = "http://activity-logs:8005/logs"
+
+def log_activity(user_id: int, action: str, detail: dict = None):
+    def _send():
+        try:
+            httpx.post(LOGS_URL, json={"user_id": user_id, "action": action, "detail": detail}, timeout=2)
+        except Exception:
+            pass
+    threading.Thread(target=_send, daemon=True).start()
 
 router = APIRouter()
 
@@ -78,6 +90,7 @@ def login(payload: LoginRequest):
     if user["mdp_hash"] != hash_password(payload.password):
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect.")
 
+    log_activity(user["id"], "login", {"method": "email"})
     return LoginResponse(
         success=True,
         message="Authentification réussie.",
@@ -121,6 +134,7 @@ def google_login(payload: GoogleLoginRequest):
         if not user["actif"]:
             raise HTTPException(status_code=403, detail="Utilisateur inactif.")
 
+        log_activity(user["id"], "login", {"method": "google_sso"})
         return LoginResponse(
             success=True,
             message="Connexion Google réussie.",

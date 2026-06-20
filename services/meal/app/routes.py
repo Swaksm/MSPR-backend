@@ -1,11 +1,23 @@
 from datetime import date, datetime
 from hashlib import sha256
 from typing import Optional
+import threading
+import httpx
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, EmailStr, model_validator
 
 from database import execute_write, fetch_all, fetch_one
+
+LOGS_URL = "http://activity-logs:8005/logs"
+
+def log_activity(user_id: int, action: str, detail: dict = None):
+    def _send():
+        try:
+            httpx.post(LOGS_URL, json={"user_id": user_id, "action": action, "detail": detail}, timeout=2)
+        except Exception:
+            pass
+    threading.Thread(target=_send, daemon=True).start()
 
 router = APIRouter()
 
@@ -128,13 +140,15 @@ def create_aliment(payload: AlimentCreate):
 
 
 @router.get("/aliments", response_model=list[AlimentResponse], summary="Rechercher des aliments", tags=["Catalogue"])
-def list_aliments(query: Optional[str] = Query(None, description="Filtrer par nom d'aliment")):
+def list_aliments(query: Optional[str] = Query(None, description="Filtrer par nom d'aliment"), user_id: Optional[int] = Query(None)):
     """Liste les aliments du catalogue avec filtrage optionnel."""
     sql = "SELECT id, nom, calories_100g, categorie, source_dataset, created_at FROM aliment"
     params = {}
     if query:
         sql += " WHERE LOWER(nom) LIKE LOWER(:query)"
         params["query"] = f"%{query}%"
+        if user_id:
+            log_activity(user_id, "search_food", {"query": query})
     sql += " ORDER BY nom LIMIT 200"
     return [AlimentResponse(**row) for row in fetch_all(sql, params)]
 
@@ -295,7 +309,9 @@ def create_meal(user_id: int, payload: MealCreate):
             },
         )
 
-    return get_meal_response(journal_id)
+    meal = get_meal_response(journal_id)
+    log_activity(user_id, "add_meal", {"type_repas": payload.type_repas, "total_calories": meal.total_calories, "nb_items": len(payload.items)})
+    return meal
 
 
 @router.get("/users/{user_id}/meals", response_model=list[MealResponse], summary="Historique des repas", tags=["Journal Alimentaire"])
@@ -324,5 +340,8 @@ def delete_meal(meal_id: int):
     meal = fetch_one("SELECT id FROM journal_repas WHERE id = :meal_id", {"meal_id": meal_id})
     if not meal:
         raise HTTPException(404, "Repas introuvable")
+    user_row = fetch_one("SELECT utilisateur_id FROM journal_repas WHERE id = :meal_id", {"meal_id": meal_id})
     execute_write("DELETE FROM journal_repas WHERE id = :meal_id", {"meal_id": meal_id})
+    if user_row:
+        log_activity(user_row["utilisateur_id"], "delete_meal", {"meal_id": meal_id})
     return {"status": "deleted", "meal_id": meal_id}
