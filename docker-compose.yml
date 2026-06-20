@@ -54,11 +54,13 @@ services:
       - MEAL_SERVICE_URL=http://meal:8003
       - AUTH_SERVICE_URL=http://auth:8004
       - ADMIN_SERVICE_URL=http://admin:8006
+      - LOGS_SERVICE_URL=http://activity-logs:8005
     depends_on:
       - kcal
       - meal
       - auth
       - admin
+      - activity-logs
 
   admin:
     build: ./services/admin
