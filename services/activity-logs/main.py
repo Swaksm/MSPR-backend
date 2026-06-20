@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime
@@ -9,6 +10,13 @@ app = FastAPI(
     title="Activity Logs Service",
     description="Service de journalisation des activites utilisateur (MongoDB)",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 MONGO_URL = os.getenv("MONGO_URL", "mongodb://mongo:27017")
