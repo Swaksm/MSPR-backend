@@ -56,10 +56,14 @@ services:
       - ADMIN_SERVICE_URL=http://admin:8006
       - LOGS_SERVICE_URL=http://activity-logs:8005
     depends_on:
-      - kcal
-      - meal
-      - auth
-      - admin
+      kcal:
+        condition: service_started
+      meal:
+        condition: service_started
+      auth:
+        condition: service_started
+      admin:
+        condition: service_started
       activity-logs:
         condition: service_healthy
 
