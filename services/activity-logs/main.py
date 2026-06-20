@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime
 from typing import Optional
+import logging
 import os
 
 app = FastAPI(
@@ -31,9 +32,12 @@ async def startup_db():
     global client, db
     client = AsyncIOMotorClient(MONGO_URL)
     db = client[MONGO_DB]
-    await db.activity_logs.create_index("user_id")
-    await db.activity_logs.create_index("action")
-    await db.activity_logs.create_index("timestamp")
+    try:
+        await db.activity_logs.create_index("user_id")
+        await db.activity_logs.create_index("action")
+        await db.activity_logs.create_index("timestamp")
+    except Exception as e:
+        logging.warning(f"Index creation skipped (non-fatal): {e}")
 
 
 @app.on_event("shutdown")
